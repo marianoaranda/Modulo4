@@ -1,34 +1,34 @@
 <!--
-Sync Impact Report
-==================
-Version change: (template / unratified) → 1.0.0
-Rationale: Initial ratification of the project constitution. MAJOR bump to 1.0.0
-           because this establishes the first governed set of principles.
+Reporte de Impacto de Sincronización
+====================================
+Cambio de versión: (plantilla / sin ratificar) → 1.0.0
+Justificación: Ratificación inicial de la constitución del proyecto. Bump MAYOR a 1.0.0
+               porque establece el primer conjunto gobernado de principios.
 
-Principles defined (4; template's 5-slot layout intentionally reduced to 4 per input):
+Principios definidos (4; el layout de 5 slots de la plantilla se redujo a 4 según el input):
   - I. Desarrollo Test-First (NO NEGOCIABLE)
   - II. Aislamiento de la Lógica de IA
   - III. Fidelidad a la Fuente de Verdad (No Alucinar)
   - IV. Gestión Segura de Secretos
 
-Added sections:
+Secciones añadidas:
   - Restricciones Adicionales (stack, alcance, límites de consulta)
   - Flujo de Trabajo y Puertas de Calidad
-  - Governance
+  - Gobernanza
 
-Removed sections: none (initial creation).
+Secciones eliminadas: ninguna (creación inicial).
 
-Templates requiring updates:
-  - ✅ .specify/templates/plan-template.md  (Constitution Check gates align; no edit needed)
-  - ✅ .specify/templates/spec-template.md  (no principle conflict; no edit needed)
-  - ✅ .specify/templates/tasks-template.md (test-first ordering already reflected; no edit needed)
+Plantillas que requieren actualización:
+  - ✅ .specify/templates/plan-template.md  (los gates de Constitution Check alinean; sin edición)
+  - ✅ .specify/templates/spec-template.md  (sin conflicto de principios; sin edición)
+  - ✅ .specify/templates/tasks-template.md (el orden test-first ya está reflejado; sin edición)
 
-Follow-up TODOs: none. Ratification date set to initial adoption date (2026-07-23).
+TODOs pendientes: ninguno. Fecha de ratificación fijada a la fecha de adopción inicial (2026-07-23).
 -->
 
-# StockModulo Constitution
+# Constitución de StockModulo
 
-## Core Principles
+## Principios Fundamentales
 
 ### I. Desarrollo Test-First (NO NEGOCIABLE)
 
@@ -38,7 +38,7 @@ que lo hace pasar (Verde), y por último la limpieza sin cambiar el comportamien
 (Refactor). Ningún código de producción se introduce sin un test que lo justifique
 y que haya fallado previamente. Los tests corren con NUnit vía `dotnet test`.
 
-**Rationale**: Escribir el test primero fuerza a definir el comportamiento esperado
+**Justificación**: Escribir el test primero fuerza a definir el comportamiento esperado
 antes de la solución, previene regresiones y produce un diseño verificable en lugar
 de uno racionalizado a posteriori.
 
@@ -50,9 +50,9 @@ dedicado y aislado. NUNCA se mezcla con la lógica de negocio ni con las capas d
 acceso a datos o presentación. La lógica de negocio consume la IA únicamente a través
 de una interfaz explícita definida por ese módulo.
 
-**Rationale**: El aislamiento permite testear la lógica de negocio con dobles de prueba,
-cambiar de proveedor o modelo sin tocar reglas de dominio, y contener el carácter no
-determinista de la IA detrás de un límite claro y auditable.
+**Justificación**: El aislamiento permite testear la lógica de negocio con dobles de
+prueba, cambiar de proveedor o modelo sin tocar reglas de dominio, y contener el
+carácter no determinista de la IA detrás de un límite claro y auditable.
 
 ### III. Fidelidad a la Fuente de Verdad (No Alucinar)
 
@@ -61,9 +61,10 @@ verdad (compras, ventas y stock registrados). Toda sugerencia de pedido debe ser
 trazable a datos reales. Ante ambigüedad, datos insuficientes o baja confianza, el
 sistema NO adivina: deriva el caso a revisión humana de forma explícita.
 
-**Rationale**: Un comercio toma decisiones de compra con dinero real a partir de estas
-sugerencias. Un dato inventado produce pedidos erróneos y pérdida de confianza; derivar
-a un humano ante la duda es preferible a una respuesta falsa presentada como cierta.
+**Justificación**: Un comercio toma decisiones de compra con dinero real a partir de
+estas sugerencias. Un dato inventado produce pedidos erróneos y pérdida de confianza;
+derivar a un humano ante la duda es preferible a una respuesta falsa presentada como
+cierta.
 
 ### IV. Gestión Segura de Secretos
 
@@ -73,8 +74,8 @@ por configuración externa o variables de entorno. Las contraseñas de usuario s
 almacenan siempre con hash + salt aleatorio por usuario; nunca en texto plano ni con
 un hash reversible.
 
-**Rationale**: Los secretos hardcodeados se filtran a través del historial de Git y de
-los builds, y son imposibles de rotar sin recompilar. Externalizarlos y hashear
+**Justificación**: Los secretos hardcodeados se filtran a través del historial de Git y
+de los builds, y son imposibles de rotar sin recompilar. Externalizarlos y hashear
 credenciales protege a los usuarios y cumple RF-03 y RF-04.
 
 ## Restricciones Adicionales
@@ -97,7 +98,7 @@ credenciales protege a los usuarios y cumple RF-03 y RF-04.
 - Cualquier desviación de un principio debe justificarse explícitamente en la sección
   de Complexity Tracking del plan; una desviación no justificada bloquea la integración.
 
-## Governance
+## Gobernanza
 
 Esta constitución tiene precedencia sobre cualquier otra práctica o convención del
 proyecto. En caso de conflicto entre una decisión de implementación y un principio
@@ -105,13 +106,13 @@ aquí definido, prevalece el principio.
 
 - **Enmiendas**: Toda modificación de esta constitución requiere documentación del
   cambio, justificación y actualización de las plantillas dependientes en `.specify/`.
-- **Versionado**: Se aplica versionado semántico. MAJOR para remociones o redefiniciones
-  incompatibles de gobernanza o principios; MINOR para nuevos principios o secciones o
-  ampliaciones materiales de la guía; PATCH para aclaraciones y correcciones no semánticas.
+- **Versionado**: Se aplica versionado semántico. MAYOR para remociones o redefiniciones
+  incompatibles de gobernanza o principios; MENOR para nuevos principios o secciones o
+  ampliaciones materiales de la guía; PARCHE para aclaraciones y correcciones no semánticas.
 - **Cumplimiento**: Cada revisión de código y cada plan de implementación deben verificar
   la conformidad con esta constitución. La complejidad no justificada debe eliminarse o
   documentarse en Complexity Tracking.
 - **Guía operativa**: `AGENTS.md` (referenciado desde `CLAUDE.md`) provee la guía de
   ejecución en tiempo de desarrollo y debe mantenerse consistente con estos principios.
 
-**Version**: 1.0.0 | **Ratified**: 2026-07-23 | **Last Amended**: 2026-07-23
+**Versión**: 1.0.0 | **Ratificada**: 2026-07-23 | **Última enmienda**: 2026-07-23
