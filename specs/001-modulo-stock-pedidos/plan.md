@@ -185,8 +185,15 @@ El detalle por tarea lo produce `/speckit-tasks`.
 
 > Se completa sólo si el Constitution Check registra violaciones a justificar.
 
-**Sin entradas**: el diseño no viola ningún principio ni restricción de la constitución. Las dos
-oportunidades de agregar complejidad se evaluaron y se rechazaron explícitamente:
+Ningún **principio** de la constitución se viola. Sí hay dos desviaciones respecto de reglas
+operativas, ambas deliberadas y con control compensatorio:
+
+| Desviación | Por qué es necesaria | Alternativa más simple, y por qué se descartó |
+|---|---|---|
+| El `.runsettings` del proyecto de tests excluye la categoría `Volumen`, de modo que `dotnet test StockModulo.sln` —la puerta de calidad literal— no ejecuta el test de CE-002 | Ese test siembra 10.000 artículos y 100.000 líneas y tarda minutos. Incluirlo en la puerta haría que cada validación de rutina pague ese costo, con el efecto predecible de que se deje de correr la puerta | Dejarlo en la corrida por defecto: se descartó porque una puerta lenta se saltea, y una puerta que se saltea no protege nada. **Control compensatorio**: T131 la ejecuta explícitamente y T122/T123 asertan el presupuesto, de modo que CE-002 y CE-004 siguen verificados antes de dar la funcionalidad por terminada |
+| `Stock.Web` accede a la base de datos para escribir la bitácora de errores (T126), rompiendo la regla de que el front consume sólo la API | RF-028 y CE-008 exigen que el **100%** de los errores de ejecución quede registrado. Una excepción no controlada en la capa MVC no llega al middleware de `Stock.Api`, así que sin esto habría una clase entera de errores invisible | Exponer un endpoint `POST /api/errores` en la API: se descartó porque un sumidero de escritura anónimo es superficie de abuso, y protegerlo exigiría un secreto compartido más su rotación — más complejidad que la que evita. **Alcance acotado**: sólo diagnóstico, sólo escritura, ninguna entidad de negocio; la regla sigue valiendo para todo dato de negocio |
+
+Las dos oportunidades de agregar complejidad al diseño se evaluaron y se rechazaron explícitamente:
 
 - Persistir el Stock Actual o materializar una vista indexada (R-01) — innecesario al volumen real y contrario al Principio III.
 - Extraer un proyecto `Stock.Domain` — el stack fijado por la constitución define dos aplicaciones, y la separación buscada se logra con una carpeta sin dependencias de framework.

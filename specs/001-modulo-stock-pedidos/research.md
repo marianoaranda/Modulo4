@@ -181,6 +181,14 @@ confundirlas:
 - La **escritura en runtime** se hace con `ErrorLogDbContext`, que apunta a la misma base pero abre
   su propia conexión, fuera de la transacción que está fallando.
 
+**Alcance: las dos aplicaciones, no sólo la API.** El middleware vive en `Stock.Api`, pero una
+excepción no controlada en la capa MVC nunca lo atraviesa. Como RF-028 y CE-008 exigen el 100% de
+los errores, `Stock.Web` monta su propio manejador global que escribe en la misma tabla con su
+propia conexión. Es la **única** excepción a la regla de que el front no toca la base: sólo
+diagnóstico, sólo escritura, ninguna entidad de negocio. Se descartó exponer un endpoint
+`POST /api/errores` porque un sumidero anónimo es superficie de abuso y protegerlo exigiría un
+secreto compartido y su rotación. La desviación queda registrada en Complexity Tracking del plan.
+
 `ErrorLogDbContext` se configura por lo tanto **sin migraciones propias**: mapea una tabla que ya
 existe. Separar también el esquema obligaría a un segundo historial de migraciones sobre la misma
 base, sin ganancia alguna. Omitir este punto es el modo de fallo natural del diseño: si `ErrorLog`
