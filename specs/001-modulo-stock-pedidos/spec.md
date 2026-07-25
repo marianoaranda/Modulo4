@@ -1,0 +1,296 @@
+# Especificación de Funcionalidad: Módulo de Stock — Generación automática de pedidos
+
+**Rama de la funcionalidad**: `001-modulo-stock-pedidos`
+
+**Fecha de creación**: 2026-07-24
+
+**Estado**: Borrador
+
+**Entrada**: Descripción del usuario: "Generá el spec a partir del PRD que está en /PRD.md"
+
+## Clarificaciones
+
+### Sesión 2026-07-25
+
+- Q: ¿Cómo se determina el Número del encabezado de un Movimiento y qué unicidad tiene? → A: Autogenerado por el sistema, con una secuencia única global compartida entre compras y ventas.
+- Q: ¿Qué pasa si la baja o modificación de una compra dejaría el stock de un artículo en negativo? → A: El invariante "stock ≥ 0" aplica a toda operación; esas bajas/modificaciones se rechazan.
+- Q: ¿Qué pasa al dar de baja un artículo con movimientos o un perfil con usuarios asignados? → A: Baja restringida: la operación se rechaza con un error; no hay baja lógica ni cascada.
+- Q: ¿Cómo se garantiza el stock ≥ 0 si dos usuarios graban ventas del mismo artículo a la vez? → A: Validación y grabación atómicas: una se graba y la otra se rechaza con el error de stock insuficiente.
+- Q: ¿Sobre qué campo se define el "rango de artículos" de la Consulta de Stock Actual y son obligatorios sus extremos? → A: Rango inclusivo sobre el Código con orden alfabético (texto); ambos extremos opcionales, vacío = sin límite por ese lado.
+
+## Escenarios de Usuario y Pruebas *(obligatorio)*
+
+### Historia de Usuario 1 - Generar la lista de pedido automáticamente (Prioridad: P1)
+
+El administrativo/vendedor de un comercio de barrio necesita saber, sin cálculos manuales,
+qué artículos reponer y en qué cantidad. Abre la consulta "Generar Pedido", elige si quiere
+ver todos los artículos o solo los que están por debajo del mínimo, selecciona hasta qué nivel
+quiere reponer (stock mínimo, punto de pedido o stock ideal) y obtiene la lista de artículos
+con la cantidad a pedir de cada uno, que puede exportar a Excel.
+
+**Por qué esta prioridad**: Es la razón de ser del módulo. Elimina el problema central del negocio
+(quedarse sin lo que más rota o comprar de más lo que no se vende) y entrega valor por sí sola
+sobre un catálogo y movimientos ya cargados.
+
+**Prueba independiente**: Sobre el Conjunto de Datos de Referencia definido en Criterios de Éxito,
+ejecutar la consulta con cada una de las 6 combinaciones de parámetros y verificar que la cantidad
+a pedir de cada artículo coincide exactamente con la esperada, y que el resultado se exporta a Excel.
+
+**Escenarios de Aceptación**:
+
+1. **Dado** "solo bajo mínimo" = No y modo "Hasta Stock Mínimo", **Cuando** se ejecuta Generar Pedido, **Entonces** se listan todos los artículos y para cada uno la cantidad a pedir = MAX(0, Stock Mínimo − Stock Actual).
+2. **Dado** "solo bajo mínimo" = No y modo "Hasta Punto Pedido", **Cuando** se ejecuta Generar Pedido, **Entonces** se listan todos los artículos y para cada uno la cantidad a pedir = MAX(0, Punto de Pedido − Stock Actual).
+3. **Dado** "solo bajo mínimo" = No y modo "Hasta Stock Ideal", **Cuando** se ejecuta Generar Pedido, **Entonces** se listan todos los artículos y para cada uno la cantidad a pedir = MAX(0, Stock Ideal − Stock Actual).
+4. **Dado** "solo bajo mínimo" = Sí y modo "Hasta Stock Mínimo", **Cuando** se ejecuta Generar Pedido, **Entonces** solo se incluyen los artículos con Stock Actual < Stock Mínimo, y para cada uno la cantidad a pedir = Stock Mínimo − Stock Actual.
+5. **Dado** "solo bajo mínimo" = Sí y modo "Hasta Punto Pedido", **Cuando** se ejecuta Generar Pedido, **Entonces** solo se incluyen los artículos con Stock Actual < Stock Mínimo, y para cada uno la cantidad a pedir = Punto de Pedido − Stock Actual.
+6. **Dado** "solo bajo mínimo" = Sí y modo "Hasta Stock Ideal", **Cuando** se ejecuta Generar Pedido, **Entonces** solo se incluyen los artículos con Stock Actual < Stock Mínimo, y para cada uno la cantidad a pedir = Stock Ideal − Stock Actual.
+7. **Dado** un resultado en pantalla, **Cuando** se presiona "Exportar a Excel", **Entonces** se descarga un archivo Excel con las columnas Código, Descripción y Cantidad a Pedir, con las mismas filas, el mismo orden y el mismo recorte que la pantalla.
+8. **Dado** un conjunto de parámetros que no arroja ninguna fila, **Cuando** se ejecuta Generar Pedido, **Entonces** se muestra una grilla vacía con un mensaje informativo, sin error.
+
+---
+
+### Historia de Usuario 2 - Registrar compras/ventas y consultar el stock actual (Prioridad: P2)
+
+El administrativo/vendedor registra los movimientos del día (compras que suman y ventas que
+restan) y consulta la cantidad en existencia de cada artículo por rango, exportable a Excel.
+El stock actual de cada artículo es el saldo de sus movimientos.
+
+**Por qué esta prioridad**: Sin movimientos registrados no hay stock real y la generación de pedido
+(P1) carece de datos. Es la fuente de verdad sobre la que se calcula todo lo demás.
+
+**Prueba independiente**: Registrar un conjunto de compras y ventas y verificar que la Consulta de
+Stock Actual devuelve, para el rango solicitado, el Stock Actual = suma de compras − suma de ventas
+de cada artículo, y que el resultado se exporta a Excel.
+
+**Escenarios de Aceptación**:
+
+1. **Dado** un movimiento nuevo válido, **Cuando** se agrega, **Entonces** queda persistido con encabezado y detalle, y el sistema le asigna un Número autogenerado.
+2. **Dado** que se graban consecutivamente una compra y una venta, **Cuando** se comparan sus Números, **Entonces** son distintos entre sí (secuencia global compartida) y ningún Número se repite en todo el sistema.
+3. **Dado** una línea de detalle con cantidad 0, negativa o no entera, **Cuando** se intenta grabar, **Entonces** el sistema rechaza la operación y no graba el movimiento.
+4. **Dado** una línea de detalle, **Cuando** se graba el movimiento, **Entonces** su Precio Total = Cantidad × Precio Unitario, calculado por el sistema.
+5. **Dado** un movimiento de venta que dejaría el stock de algún artículo por debajo de 0, **Cuando** se intenta grabar, **Entonces** el sistema muestra un error y no graba el movimiento.
+6. **Dado** una compra ya consumida por ventas posteriores, **Cuando** se intenta darla de baja o reducir su cantidad de modo que el stock de algún artículo quede por debajo de 0, **Entonces** el sistema muestra un error y no aplica ningún cambio.
+7. **Dado** un movimiento multilínea, **Cuando** falla la validación de cualquiera de sus líneas durante un alta, baja o modificación, **Entonces** ninguna línea queda aplicada y el Stock Actual de todos los artículos permanece como estaba.
+8. **Dado** dos ventas concurrentes del mismo artículo cuya suma excede el stock disponible, **Cuando** ambas se intentan grabar, **Entonces** exactamente una se graba y la otra se rechaza con el error de stock insuficiente, evaluado contra el stock ya actualizado.
+9. **Dado** un rango de artículos, **Cuando** se ejecuta la Consulta de Stock Actual, **Entonces** devuelve Código, Descripción y Cantidad (el Stock Actual calculado por saldo de movimientos), ordenada por Código ascendente y exportable a Excel.
+10. **Dado** un rango con Código inicial y final informados, **Cuando** se ejecuta la Consulta de Stock Actual, **Entonces** se incluyen los artículos cuyo Código está entre ambos extremos inclusive según orden alfabético; y si uno o ambos extremos se dejan vacíos, no se aplica límite por ese lado.
+11. **Dado** un artículo del catálogo sin ningún movimiento registrado, **Cuando** se ejecuta cualquiera de las dos consultas, **Entonces** el artículo aparece con Stock Actual 0 y se le aplican las reglas de pedido como a cualquier otro.
+12. **Dado** un resultado que alcanza el tope de 10.000 filas, **Cuando** se muestra, **Entonces** el sistema informa explícitamente que el resultado fue recortado y que conviene acotar con el filtro.
+
+---
+
+### Historia de Usuario 3 - Administrar el catálogo de artículos (Prioridad: P3)
+
+El administrador mantiene el catálogo: da de alta, modifica y da de baja artículos con sus
+parámetros de reposición (stock mínimo, punto de pedido, stock ideal) y su precio, que se
+calcula a partir del costo y el margen.
+
+**Por qué esta prioridad**: Los parámetros de reposición de cada artículo son insumo de P1 y el
+catálogo es referencia de P2, pero puede validarse de forma aislada como ABM.
+
+**Escenarios de Aceptación**:
+
+1. **Dado** un artículo nuevo, **Cuando** se agrega/modifica/elimina, **Entonces** el cambio queda persistido y recuperable (o deja de existir) por su Código.
+2. **Dado** un precio de costo y un margen, **Cuando** se graba el artículo, **Entonces** el precio de venta = Precio de Costo × (1 + Margen / 100).
+3. **Dado** un Código repetido, un valor negativo en costo/margen/stocks, un parámetro de reposición no entero, o el incumplimiento de Stock Mínimo ≤ Punto de Pedido ≤ Stock Ideal, **Cuando** se intenta grabar, **Entonces** el sistema rechaza la operación y no graba el registro.
+4. **Dado** un artículo con al menos un movimiento asociado, **Cuando** se intenta darlo de baja, **Entonces** el sistema muestra un error y el artículo sigue existiendo con su histórico intacto.
+5. **Dado** un artículo cuyos parámetros de reposición se modifican, **Cuando** se vuelve a ejecutar Generar Pedido, **Entonces** el resultado refleja los parámetros vigentes al momento de la ejecución (la consulta no conserva resultados previos).
+
+---
+
+### Historia de Usuario 4 - Iniciar sesión y proteger el acceso (Prioridad: P4)
+
+Todo usuario debe autenticarse para usar el sistema. Solo la pantalla de inicio de sesión es
+pública; cualquier otra funcionalidad exige una sesión autenticada válida.
+
+**Por qué esta prioridad**: Es transversal a todas las funcionalidades, pero el valor de negocio
+central (P1–P3) puede demostrarse antes de endurecer el acceso. Aun así es requisito para uso real.
+
+**Escenarios de Aceptación**:
+
+1. **Dado** un usuario inexistente o con contraseña incorrecta, **Cuando** intenta iniciar sesión, **Entonces** el sistema muestra "Usuario o contraseña incorrectos" y no autoriza el ingreso.
+2. **Dado** un usuario existente con contraseña correcta, **Cuando** inicia sesión, **Entonces** el sistema autoriza el ingreso.
+3. **Dado** una solicitud sin sesión autenticada válida, **Cuando** se invoca una funcionalidad protegida, **Entonces** el sistema responde no autorizado (401) y deniega el acceso.
+
+---
+
+### Historia de Usuario 5 - Administrar usuarios y perfiles de seguridad (Prioridad: P5)
+
+El administrador da de alta, modifica y da de baja perfiles de seguridad y usuarios. Las
+contraseñas se almacenan siempre de forma no reversible. Solo el perfil administrador puede
+acceder a la carga de usuarios.
+
+**Por qué esta prioridad**: Necesario para operación multiusuario y para que exista el control de
+acceso de P4, pero no aporta valor de negocio directo por sí mismo.
+
+**Escenarios de Aceptación**:
+
+1. **Dado** un perfil sin usuarios asignados o un usuario, **Cuando** se da de alta/modifica/baja, **Entonces** el cambio queda persistido y recuperable (o deja de existir) por su identificador.
+2. **Dado** el alta de un usuario, **Cuando** se graba, **Entonces** la contraseña se almacena como hash con salt aleatorio propio (dos usuarios con la misma contraseña tienen hashes distintos) y nunca en texto plano ni en formato reversible.
+3. **Dado** una contraseña de menos de 8 caracteres alfanuméricos, **Cuando** se intenta grabar, **Entonces** el sistema muestra un error y no graba el registro.
+4. **Dado** un usuario cuyo perfil no es administrador, **Cuando** intenta acceder a la carga de usuarios, **Entonces** el sistema deniega el acceso.
+5. **Dado** un perfil con al menos un usuario asignado, **Cuando** se intenta darlo de baja, **Entonces** el sistema muestra un error y el perfil sigue existiendo.
+
+---
+
+### Casos Límite
+
+- **Catálogo grande**: con más de 10.000 artículos, las consultas recortan el resultado a las primeras 10.000 filas según el orden por Código, informan que hubo recorte y ofrecen un filtro opcional por descripción para acotar el volumen.
+- **Stock ya suficiente**: un artículo cuyo Stock Actual ya alcanza o supera el nivel elegido arroja Cantidad a Pedir 0 y se lista igual cuando "solo bajo mínimo" = No; nunca arroja un valor negativo.
+- **Artículo sin movimientos**: su Stock Actual es 0 y participa de ambas consultas como cualquier otro; si su Stock Mínimo es mayor que 0, queda por debajo del mínimo.
+- **Stock Mínimo igual a 0**: el artículo nunca cumple Stock Actual < Stock Mínimo, por lo que queda siempre fuera del resultado cuando "solo bajo mínimo" = Sí. Es comportamiento esperado, no un defecto.
+- **Parámetros de reposición iguales**: si Stock Mínimo = Punto de Pedido = Stock Ideal (permitido por RF-019), las tres modalidades de pedido arrojan el mismo resultado.
+- **Rango invertido**: si el Código inicial es alfabéticamente mayor que el final, la consulta devuelve un resultado vacío con mensaje informativo, no un error.
+- **Resultado vacío**: cualquier combinación de rango y filtro que no arroje filas muestra una grilla vacía con mensaje informativo y permite exportar un Excel con solo los encabezados.
+- **Venta sin stock**: una venta que dejaría el stock de algún artículo por debajo de 0 se rechaza por completo (no se graba parcialmente).
+- **Ventas concurrentes del mismo artículo**: si dos usuarios graban a la vez ventas que juntas superan el stock disponible, solo una se graba; la otra se rechaza con el error de stock insuficiente y el saldo nunca queda negativo.
+- **Baja/modificación de movimientos**: modificar o eliminar un movimiento recalcula el Stock Actual derivado; la validación de stock no negativo aplica a toda operación, incluida la baja o modificación de una compra ya consumida por ventas posteriores, que se rechaza en lugar de dejar el stock en negativo.
+- **Fallo parcial en movimiento multilínea**: si cualquier línea falla su validación, no se aplica ninguna; el movimiento es todo-o-nada.
+- **Cantidad no entera o ≤ 0**: cualquier línea con cantidad que no sea entero positivo invalida todo el movimiento.
+- **Cantidad o precio fuera de rango**: una línea cuya Cantidad supere 1.000.000 de unidades, o cuyo Precio Unitario o Precio Total supere el máximo admitido, invalida todo el movimiento.
+- **Código duplicado**: no se permite dar de alta ni modificar un artículo hacia un Código ya usado.
+- **Baja de entidad referenciada**: no se permite eliminar un artículo con movimientos asociados ni un perfil con usuarios asignados; la operación se rechaza con un error y el registro permanece intacto.
+- **Error de ejecución**: cualquier error en tiempo de ejecución queda registrado en la bitácora de errores sin exponer detalles internos al usuario.
+
+## Requisitos *(obligatorio)*
+
+### Convención de identificadores
+
+Los requisitos se numeran **RF-0XX** y referencian entre paréntesis el requisito de origen del PRD.
+Un sufijo alfabético (por ejemplo **RF-024a**) identifica un requisito derivado que refina o
+completa al RF base con el mismo número, incorporado a partir de una clarificación o de una
+auditoría de calidad. El sufijo preserva la trazabilidad hacia el PRD del requisito padre.
+
+### Requisitos Funcionales
+
+**Perfiles de seguridad**
+- **RF-001** (RF-01): El sistema DEBE permitir dar de alta un perfil de seguridad con Identificador (autonumérico) y Descripción.
+- **RF-002** (RF-02): El sistema DEBE permitir dar de baja un perfil de seguridad existente.
+- **RF-002a** (RF-02): El sistema DEBE rechazar la baja de un perfil de seguridad que tenga usuarios asignados, mostrando un error y sin eliminar el registro (baja restringida; no hay baja lógica ni eliminación en cascada).
+- **RF-003** (RF-03): El sistema DEBE permitir modificar la Descripción de un perfil existente.
+
+**Usuarios**
+- **RF-004** (RF-04): El sistema DEBE permitir dar de alta un usuario con identificador, nombre de usuario, nombre completo y credenciales almacenadas de forma no reversible.
+- **RF-005** (RF-05): El sistema DEBE permitir dar de baja un usuario existente.
+- **RF-006** (RF-06): El sistema DEBE permitir modificar los datos de un usuario existente.
+
+**Seguridad de credenciales**
+- **RF-007** (RF-07): El sistema DEBE almacenar la contraseña de cada usuario de forma no recuperable ni desencriptable en texto plano.
+- **RF-008** (RF-08): El sistema DEBE generar la representación protegida de la contraseña con un valor aleatorio (salt) propio de cada usuario, de modo que dos usuarios con la misma contraseña tengan representaciones distintas.
+- **RF-009** (RF-09): El sistema DEBE rechazar el alta o modificación de un usuario cuya contraseña tenga menos de 8 caracteres alfanuméricos, mostrando un error y sin grabar.
+
+**Acceso**
+- **RF-010** (RF-10): El sistema DEBE restringir la carga de usuarios (RF-004 a RF-006) exclusivamente al perfil administrador.
+- **RF-011** (RF-11): El sistema DEBE ofrecer una pantalla de inicio de sesión que valide usuario y contraseña contra la representación protegida (usando el salt del usuario), mostrando "Usuario o contraseña incorrectos" ante credenciales inválidas.
+- **RF-012** (RF-12): El sistema DEBE exigir una sesión autenticada válida para toda funcionalidad salvo el inicio de sesión, y rechazar (no autorizado) toda solicitud a una funcionalidad protegida sin sesión válida.
+
+**Artículos**
+- **RF-013** (RF-13): El sistema DEBE permitir dar de alta un artículo con Código, Descripción, Precio de Costo, Margen (%), Precio de Venta (calculado), Stock Mínimo, Punto de Pedido y Stock Ideal.
+- **RF-013a** (RF-13): El sistema DEBE tratar el Código como texto y los tres parámetros de reposición (Stock Mínimo, Punto de Pedido, Stock Ideal) como números **enteros** no negativos, en coherencia con RF-023, que restringe las cantidades de movimiento a enteros. En consecuencia, el Stock Actual y la Cantidad a Pedir son siempre enteros y no requieren regla de redondeo.
+- **RF-014** (RF-14): El sistema DEBE permitir dar de baja un artículo existente.
+- **RF-014a** (RF-14): El sistema DEBE rechazar la baja de un artículo que tenga movimientos asociados, mostrando un error y sin eliminar el registro, de modo que el histórico de movimientos y el Stock Actual derivado se preserven íntegros (baja restringida; no hay baja lógica ni eliminación en cascada).
+- **RF-015** (RF-15): El sistema DEBE permitir modificar los datos de un artículo existente.
+- **RF-016** (RF-16): El sistema DEBE calcular el Precio de Venta como Precio de Costo × (1 + Margen / 100).
+- **RF-017** (RF-17): El sistema DEBE rechazar el alta o modificación de un artículo con Código duplicado (el Código es único).
+- **RF-018** (RF-18): El sistema DEBE rechazar el alta o modificación si Precio de Costo, Margen, Stock Mínimo, Punto de Pedido o Stock Ideal es negativo, o si alguno de los tres parámetros de reposición no es un número entero.
+- **RF-019** (RF-19): El sistema DEBE rechazar el alta o modificación que no cumpla Stock Mínimo ≤ Punto de Pedido ≤ Stock Ideal.
+
+**Movimientos**
+- **RF-020** (RF-20): El sistema DEBE permitir dar de alta un Movimiento (venta o compra) con encabezado (Tipo, Número, Fecha) y detalle (Código, Cantidad, Precio Unitario, Precio Total).
+- **RF-020a** (RF-20): El sistema DEBE generar automáticamente el Número del Movimiento a partir de una secuencia única global compartida por compras y ventas: el Número identifica al Movimiento por sí solo (no se repite entre tipos), no es editable por el usuario y no se reutiliza tras una baja.
+- **RF-020b** (RF-20): El sistema DEBE admitir para el Tipo de Movimiento exclusivamente los valores **Compra** y **Venta**; una compra suma al Stock Actual y una venta resta.
+- **RF-020c** (RF-20): El sistema DEBE calcular el Precio Total de cada línea de detalle como Cantidad × Precio Unitario; no es un valor cargado por el usuario.
+- **RF-020d** (RF-20): El sistema DEBE rechazar un Movimiento cuya Fecha sea posterior a la fecha actual. El Stock Actual considera todos los movimientos registrados, sin corte ni proyección por fecha.
+- **RF-021** (RF-21): El sistema DEBE permitir dar de baja un Movimiento existente (encabezado y detalle).
+- **RF-022** (RF-22): El sistema DEBE permitir modificar un Movimiento existente (encabezado y detalle).
+- **RF-023** (RF-23): El sistema DEBE rechazar el alta o modificación de un Movimiento con alguna línea cuya Cantidad no sea un número entero mayor que 0.
+- **RF-023a** (RF-23): El sistema DEBE rechazar el alta o modificación de un Movimiento con alguna línea cuya Cantidad supere 1.000.000 de unidades, o cuyo Precio Unitario o Precio Total exceda el máximo representable por el sistema, mostrando un error y sin grabar.
+- **RF-023b** (RF-20): El sistema NO DEBE validar el Precio Unitario de una línea contra el Precio de Costo ni el Precio de Venta del artículo: el precio se informa por movimiento y refleja la operación real, sin vínculo con el catálogo.
+- **RF-024** (RF-24): El sistema DEBE rechazar el alta o modificación de un Movimiento de venta que dejaría el Stock Actual de algún artículo por debajo de 0, mostrando un error y sin grabar.
+- **RF-024a** (RF-21/RF-22/RF-24): El sistema DEBE mantener el invariante Stock Actual ≥ 0 en TODA operación sobre Movimientos, incluidas la baja y la modificación de una compra: si el resultado dejaría el Stock Actual de algún artículo por debajo de 0, la operación se rechaza por completo mostrando un error y sin grabar ningún cambio.
+- **RF-024b** (RF-21/RF-22/RF-24): El sistema DEBE evaluar la validación de stock y aplicar el cambio como una única operación atómica en TODA operación sobre Movimientos (alta, baja y modificación), de modo que dos operaciones concurrentes sobre el mismo artículo no puedan validar ambas contra el mismo Stock Actual. Ante concurrencia, una operación se aplica y la otra se rechaza con el error de stock insuficiente evaluado contra el Stock Actual ya actualizado; el usuario nunca recibe un error de conflicto de concurrencia que lo obligue a reintentar.
+- **RF-024c** (RF-20/RF-21/RF-22): El sistema DEBE tratar cada Movimiento como una unidad todo-o-nada: si cualquier línea de detalle falla una validación durante un alta, baja o modificación, ninguna línea queda aplicada y el Stock Actual de todos los artículos involucrados permanece inalterado.
+
+**Stock inicial**
+- **RF-029** (RF-20/RF-25): El sistema DEBE permitir cargar el stock preexistente al poner en marcha el sistema mediante Movimientos de tipo Compra con la fecha de apertura correspondiente. No existe un campo de stock inicial editable: el Stock Actual es siempre y exclusivamente el saldo de los movimientos registrados.
+
+**Consultas**
+- **RF-025** (RF-25): El sistema DEBE ofrecer la consulta "Consulta de Stock Actual", con parámetro rango de artículos (inicial y final), columnas Código, Descripción y Cantidad —donde Cantidad es el Stock Actual, saldo de movimientos: ventas restan, compras suman—, exportable a Excel.
+- **RF-025a** (RF-25): El sistema DEBE interpretar el rango de artículos como un rango inclusivo sobre el Código, comparado y ordenado alfabéticamente como texto. Ambos extremos son opcionales: si el inicial está vacío no se aplica límite inferior, si el final está vacío no se aplica límite superior, y si ambos están vacíos se consideran todos los artículos; en todos los casos rige el tope de RF-027. Si el Código inicial es alfabéticamente mayor que el final, el resultado es vacío y no un error.
+- **RF-026** (RF-26): El sistema DEBE ofrecer la consulta "Generar Pedido" con parámetros de reposición "solo bajo mínimo" (booleano) y "Modo de Pedido" (Hasta Stock Mínimo / Hasta Punto Pedido / Hasta Stock Ideal), columnas Código, Descripción y Cantidad a Pedir, exportable a Excel, calculada según:
+  - "solo bajo mínimo" = No: se listan TODOS los artículos del catálogo, con Cantidad a Pedir = MAX(0, Nivel − Stock Actual); las filas con Cantidad a Pedir 0 se muestran igual, no se omiten.
+  - "solo bajo mínimo" = Sí: se listan solo los artículos con Stock Actual < Stock Mínimo, con Cantidad a Pedir = MAX(0, Nivel − Stock Actual). En esta rama el MAX(0, …) es redundante pero se aplica por uniformidad: dado que RF-019 garantiza Stock Mínimo ≤ Nivel y el filtro garantiza Stock Actual < Stock Mínimo, la diferencia es siempre mayor que 0.
+  - Donde Nivel es Stock Mínimo, Punto de Pedido o Stock Ideal según el Modo de Pedido.
+- **RF-026a** (RF-26): El sistema NO DEBE ofrecer parámetro de rango de artículos en "Generar Pedido"; sus únicos parámetros de reposición son los dos de RF-026, más el filtro opcional de acotación de RF-027a.
+- **RF-027** (RF-25/RF-26): El sistema DEBE acotar el volumen de ambas consultas a un máximo de 10.000 filas y ofrecer un filtro opcional por descripción.
+- **RF-027a** (RF-25/RF-26): El sistema DEBE aplicar el filtro opcional por descripción como coincidencia parcial (el texto buscado aparece en cualquier posición de la Descripción), insensible a mayúsculas/minúsculas y a acentos. Un filtro vacío no acota el resultado.
+- **RF-027b** (RF-25/RF-26): El sistema DEBE ordenar el resultado de ambas consultas por Código ascendente (orden alfabético como texto), aplicar el rango y el filtro primero, y recién sobre el conjunto ya filtrado y ordenado aplicar el tope de 10.000 filas, de modo que el resultado sea determinista y reproducible.
+- **RF-027c** (RF-25/RF-26): El sistema DEBE informar explícitamente al usuario cuando el resultado fue recortado por alcanzar el tope de 10.000 filas, indicando que debe acotar la consulta con el filtro por descripción.
+- **RF-030** (RF-25/RF-26): El sistema DEBE incluir en el resultado de ambas consultas a los artículos del catálogo sin movimientos registrados, con Stock Actual 0, aplicándoles las mismas reglas de pedido que al resto.
+- **RF-031** (RF-25/RF-26): El sistema DEBE producir una exportación a Excel que replique exactamente las filas, el orden y el recorte mostrados en pantalla al momento de exportar. Un resultado vacío exporta un archivo con solo los encabezados de columna.
+- **RF-032** (RF-25/RF-26): El sistema DEBE mostrar una grilla vacía con un mensaje informativo, sin error, cuando la combinación de parámetros no arroja ninguna fila.
+- **RF-033** (RF-26): El sistema DEBE calcular "Generar Pedido" siempre contra el estado vigente del catálogo y de los movimientos al momento de ejecutar la consulta. El resultado no se persiste ni se versiona: modificar los parámetros de reposición de un artículo se refleja en la siguiente ejecución.
+
+**Registro de errores**
+- **RF-028** (RF-27): El sistema DEBE registrar todo error de ejecución en una bitácora con Identificador (autonumérico), Fecha/Hora, Nombre de la máquina, Mensaje y Detalle de la excepción.
+
+### Entidades Clave *(incluir si la funcionalidad involucra datos)*
+
+- **Perfil de seguridad**: rol de acceso; identificador y descripción (ej.: administrador, administrativo, vendedor). No puede eliminarse mientras tenga usuarios asignados.
+- **Usuario**: persona que opera el sistema; identificador, nombre de usuario, nombre completo, credenciales protegidas (representación no reversible + salt propio) y perfil asociado.
+- **Artículo**: ítem del catálogo; Código único (texto; base del orden alfabético y del rango de las consultas), descripción, precio de costo, margen, precio de venta calculado, y los tres parámetros de reposición enteros no negativos (stock mínimo, punto de pedido, stock ideal). Su **Stock Actual** es derivado (saldo de movimientos), no un campo propio, siempre entero y nunca negativo. No puede eliminarse mientras tenga movimientos asociados.
+- **Movimiento (encabezado)**: compra o venta; tipo (conjunto cerrado: Compra | Venta), número y fecha (no futura). El Número es autogenerado por el sistema desde una única secuencia global (compras y ventas comparten numeración), es único en todo el sistema, no editable y no reutilizable.
+- **Detalle de movimiento**: líneas del movimiento; artículo (Código), cantidad (entero > 0), precio unitario informado por operación y precio total calculado como cantidad × precio unitario.
+- **Registro de error**: bitácora de fallos; identificador, fecha/hora, nombre de máquina, mensaje y detalle de la excepción.
+
+**Terminología canónica**: se usa **Stock Actual** en todo el documento para designar el saldo de
+movimientos de un artículo. "Cantidad" se emplea únicamente como rótulo de la columna de la
+"Consulta de Stock Actual", que expone ese mismo valor, y como campo del detalle de movimiento.
+
+## Criterios de Éxito *(obligatorio)*
+
+### Resultados Medibles
+
+- **CE-001**: El usuario obtiene la lista de artículos a pedir eligiendo los dos parámetros de reposición ("solo bajo mínimo" y "Modo de Pedido") y ejecutando una única consulta, sin ningún cálculo manual. El filtro por descripción de RF-027a es un acotador opcional del volumen, no un parámetro de reposición, y su omisión no altera el cálculo.
+- **CE-002**: Las consultas "Consulta de Stock Actual" y "Generar Pedido" responden en menos de 3 segundos (p95) sobre un volumen de referencia de 10.000 artículos y 100.000 líneas de detalle de movimiento.
+- **CE-003**: Las 6 combinaciones de parámetros de "Generar Pedido" producen exactamente las cantidades del Conjunto de Datos de Referencia definido abajo, y esa cantidad nunca es negativa.
+- **CE-004**: El sistema opera correctamente con entre 1 y 5 usuarios concurrentes sin degradación funcional. Se verifica lanzando 5 ventas simultáneas del mismo artículo cuya suma excede el stock disponible y comprobando que la cantidad total efectivamente grabada nunca supera el stock disponible previo y que el Stock Actual resultante es ≥ 0.
+- **CE-005**: El Stock Actual de un artículo nunca queda por debajo de 0: ninguna alta, baja ni modificación de movimiento (venta o compra) puede grabarse si el resultado violara ese invariante.
+- **CE-006**: Ninguna contraseña puede recuperarse en texto plano; dos usuarios con la misma contraseña presentan representaciones protegidas distintas en el 100% de los casos.
+- **CE-007**: Ninguna funcionalidad distinta del inicio de sesión es accesible sin una sesión autenticada válida.
+- **CE-008**: El 100% de los errores de ejecución quedan registrados en la bitácora de errores.
+
+### Conjunto de Datos de Referencia (para CE-003)
+
+Catálogo de prueba con el Stock Actual resultante de sus movimientos:
+
+| Código | Stock Mínimo | Punto de Pedido | Stock Ideal | Stock Actual | Caso que cubre |
+|--------|--------------|-----------------|-------------|--------------|----------------|
+| A-001  | 10 | 20 | 50 | 5  | Por debajo del mínimo |
+| A-002  | 10 | 20 | 50 | 15 | Sobre el mínimo, bajo el punto de pedido |
+| A-003  | 10 | 20 | 50 | 60 | Por encima del stock ideal |
+| A-004  | 0  | 0  | 0  | 0  | Parámetros en cero, sin movimientos |
+
+Cantidad a Pedir esperada para cada una de las 6 combinaciones:
+
+| solo bajo mínimo | Modo de Pedido | A-001 | A-002 | A-003 | A-004 |
+|------------------|----------------|-------|-------|-------|-------|
+| No  | Hasta Stock Mínimo | 5  | 0  | 0 | 0 |
+| No  | Hasta Punto Pedido | 15 | 5  | 0 | 0 |
+| No  | Hasta Stock Ideal  | 45 | 35 | 0 | 0 |
+| Sí  | Hasta Stock Mínimo | 5  | — | — | — |
+| Sí  | Hasta Punto Pedido | 15 | — | — | — |
+| Sí  | Hasta Stock Ideal  | 45 | — | — | — |
+
+"—" indica que el artículo no se incluye en el resultado por no cumplir Stock Actual < Stock Mínimo.
+Nótese que A-004 queda excluido con "solo bajo mínimo" = Sí porque 0 < 0 es falso.
+
+## Supuestos
+
+- El proyecto es un curso/entrega con stack y restricciones ya fijados por el PRD, `AGENTS.md` y la constitución (sitio web con separación Front-End/Back-End, autenticación por token, base de datos relacional, límite de 10.000 artículos y filtro por descripción); estos detalles de implementación se detallan en el plan, no en este spec.
+- El "Stock Actual" de un artículo es siempre un valor derivado del saldo de sus movimientos (compras suman, ventas restan) y no se almacena como dato editable. **Riesgo abierto para el plan**: sostener CE-002 (3 segundos p95) sobre un saldo calculado con 100.000 líneas de movimiento exige una estrategia de cálculo eficiente; el plan debe justificar cómo se logra sin introducir un campo de stock persistido que contradiga este supuesto.
+- El "Nivel" de reposición en "Generar Pedido" corresponde a Stock Mínimo, Punto de Pedido o Stock Ideal según el Modo de Pedido seleccionado.
+- El Punto de Pedido es exclusivamente un nivel de reposición seleccionable en "Generar Pedido". No dispara alertas, avisos ni notificaciones propias: cualquier señalización automática al cruzarlo está fuera de alcance.
+- Las reglas de stock y pedido se calculan íntegramente con datos propios del sistema y no dependen de ningún servicio externo, por lo que no se requieren requisitos de modo de fallo, reintento ni degradación frente a terceros.
+- Fuera de alcance (según PRD): carga de proveedores, manejo de múltiples proveedores por artículo, generación de órdenes de compra y permisos por perfil para pantallas distintas de la carga de usuarios (todo usuario autenticado accede al resto de las funcionalidades; la única restricción por perfil es la carga de usuarios).
+- Existe un usuario administrador inicial para poder operar el alta de usuarios y perfiles.
