@@ -1,6 +1,6 @@
 # Plan de Implementación: Módulo de Stock — Generación automática de pedidos
 
-**Rama**: `main` (sin rama de funcionalidad dedicada) | **Fecha**: 2026-07-25 | **Spec**: [spec.md](./spec.md)
+**Rama**: `001-modulo-stock-pedidos` | **Fecha**: 2026-07-25 | **Spec**: [spec.md](./spec.md)
 
 **Entrada**: Especificación de `/specs/001-modulo-stock-pedidos/spec.md`
 
@@ -51,7 +51,7 @@ El detalle y las alternativas descartadas están en [research.md](./research.md)
 
 | Principio | Estado | Fundamento |
 |-----------|--------|------------|
-| **I. Desarrollo Test-First** | ✅ PASA | El plan ordena el trabajo en rojo→verde→refactor. La lógica de pedido es una función pura testeable sin infraestructura, y el spec aporta el Conjunto de Datos de Referencia con las 36 cantidades esperadas: los tests de CE-003 pueden escribirse antes que el código. |
+| **I. Desarrollo Test-First** | ✅ PASA | El plan ordena el trabajo en rojo→verde→refactor. La lógica de pedido es una función pura testeable sin infraestructura, y el spec aporta el Conjunto de Datos de Referencia (matriz de 6 × 4 = 24 celdas: 15 cantidades asertadas y 9 exclusiones): los tests de CE-003 pueden escribirse antes que el código. |
 | **II. Aislamiento de la Lógica de IA** | ✅ PASA (por vacuidad) | Esta funcionalidad **no contiene lógica de IA**. La "inferencia" de qué pedir es una fórmula determinista (`MAX(0, Nivel − Stock Actual)`), no una llamada a un modelo. No hay prompts, ni invocación de modelos, ni parseo de respuestas que aislar. Si en el futuro se agregara sugerencia predictiva de reposición, este principio obligaría a un módulo dedicado. |
 | **III. Fidelidad a la Fuente de Verdad** | ✅ PASA | Toda cantidad a pedir es trazable a movimientos reales. El Stock Actual no se estima ni se infiere: es el saldo de compras y ventas registradas. No hay caso de "baja confianza" que derivar a un humano porque no hay estimación. |
 | **IV. Gestión Segura de Secretos** | ✅ PASA | Cadena de conexión, clave de firma JWT y contraseña del administrador inicial se inyectan por variable de entorno. Las contraseñas se derivan con PBKDF2 + salt aleatorio de 16 bytes por usuario. |
@@ -70,7 +70,7 @@ El detalle y las alternativas descartadas están en [research.md](./research.md)
 
 | Principio | Estado | Qué cambió en el diseño |
 |-----------|--------|--------------------------|
-| **I. Test-First** | ✅ PASA | R-10 fija la estrategia: `Unit` para la calculadora de pedido, validadores y hashing; `Integration` contra SQL Server real para lo que depende del motor (bloqueos, collations, agregación). Se rechazó InMemory/SQLite justamente porque daría verde falso en los tres puntos de mayor riesgo. |
+| **I. Test-First** | ✅ PASA | R-10 fija la estrategia: `Unit` para la calculadora de pedido, validadores y hashing; `Integration` contra SQL Server real para lo que depende del motor (bloqueos, collations, agregación). Se rechazó InMemory/SQLite justamente porque daría verde falso en los tres puntos de mayor riesgo. El principio se aplica **sin excepción por capa**: (a) el esquema codifica reglas de negocio (`CHECK` de orden de stocks, columnas calculadas, índice único), por lo que `tasks.md` ordena los tests de esas restricciones **antes** que las configuraciones que las implementan; (b) la capa `Stock.Web` tiene su propia carpeta de tests con `WebApplicationFactory`, incluido el `BearerTokenHandler`, que contiene lógica real de manejo del 401. |
 | **II. Aislamiento de IA** | ✅ PASA (por vacuidad) | El diseño no introdujo ninguna dependencia de IA. Sin cambios. |
 | **III. Fuente de verdad** | ✅ **REFORZADO** | `vw_StockActual` es el único lugar donde se calcula el saldo, consumido tanto por las consultas como por la validación del invariante. `PrecioVenta` y `PrecioTotal` son columnas calculadas por el motor: no pueden divergir de sus insumos. Se rechazó explícitamente persistir el stock (R-01), que habría creado una segunda fuente de verdad. |
 | **IV. Secretos** | ✅ PASA | R-03 y R-04 detallan la derivación de contraseñas y la firma del token; ningún secreto queda en el código ni en el repositorio. |
@@ -110,8 +110,9 @@ src/
 │   │   ├── Pedido/                # Calculadora de pedido: lógica pura, sin dependencias
 │   │   └── Validation/            # Validadores de artículo, movimiento y contraseña
 │   ├── Data/
-│   │   ├── StockDbContext.cs
-│   │   ├── ErrorLogDbContext.cs   # Conexión independiente: sobrevive al rollback (R-08)
+│   │   ├── StockDbContext.cs      # Dueño del esquema de las SEIS tablas, incluida ErrorLog
+│   │   ├── ErrorLogDbContext.cs   # Conexión independiente para escribir; sin migraciones propias (R-08)
+│   │   ├── ArticuloLockRepository.cs  # Bloqueo pesimista UPDLOCK del protocolo de escritura (R-02)
 │   │   ├── Configurations/        # Columnas calculadas, CHECK, collations, índices
 │   │   ├── Views/                 # vw_StockActual (entidad sin clave)
 │   │   ├── Migrations/
@@ -129,15 +130,32 @@ src/
     └── Services/                  # HttpClient tipado + DelegatingHandler que adjunta el Bearer
 
 tests/
-└── Stock.Tests/                   # NUnit
-    ├── Unit/                      # Sin base: calculadora de pedido, validadores, hashing
-    │   └── PedidoCalculatorTests   # Las 6 combinaciones vs. el Conjunto de Datos de Referencia
-    └── Integration/               # Contra el SQL Server de compose
-        ├── ConsultasTests          # Orden, recorte determinista, filtro, rango, artículos sin movimientos
-        ├── MovimientosTests        # Invariante ≥ 0, todo-o-nada, baja restringida
-        ├── ConcurrenciaTests       # CE-004: 5 ventas simultáneas
-        ├── SeguridadTests          # 401/403, salts distintos, política de contraseña
-        └── ErrorLogTests           # La bitácora sobrevive al rollback
+└── Stock.Tests/                   # NUnit. Categorías: Unit, Integration, Volumen
+    ├── Unit/                      # Sin base de datos
+    │   ├── PedidoCalculatorTests      # Conjunto de Datos de Referencia (6 × 4 celdas)
+    │   ├── MovimientoValidatorTests   # Cantidad, precios, fecha, tipo
+    │   ├── ArticuloValidatorTests
+    │   ├── PasswordHasherTests
+    │   └── PasswordPolicyTests
+    ├── Integration/               # Contra el SQL Server de compose
+    │   ├── IntegrationTestBase        # Base por corrida + fixture autenticado
+    │   ├── EsquemaArticuloTests       # CHECK, columna calculada, índice único
+    │   ├── EsquemaMovimientoTests     # CHECK, cascada, NO ACTION
+    │   ├── EsquemaErrorLogTests       # La tabla existe tras migrar
+    │   ├── VistaStockActualTests      # Saldo y artículos sin movimientos
+    │   ├── GenerarPedidoTests / GenerarPedidoContractTests
+    │   ├── ConsultaStockActualTests   # Orden, recorte determinista, filtro, rango
+    │   ├── MovimientoInvarianteTests / MovimientoAtomicidadTests / MovimientoNumeracionTests
+    │   ├── ConcurrenciaTests          # CE-004: 5 ventas simultáneas
+    │   ├── ArticulosTests / UsuariosTests / PerfilesTests / SeguridadTests
+    │   ├── ExportacionExcelTests
+    │   ├── ErrorLogTests              # La bitácora sobrevive al rollback
+    │   └── RendimientoTests           # Categoría Volumen, excluida de la corrida por defecto
+    └── Web/                       # Capa MVC con WebApplicationFactory
+        ├── WebTestBase
+        ├── GenerarPedidoControllerTests / MovimientosControllerTests
+        ├── ArticulosControllerTests / SeguridadControllerTests
+        └── BearerTokenHandlerTests    # Adjunta el Bearer y maneja el 401
 ```
 
 **Decisión de estructura**: dos proyectos de aplicación más uno de tests, exactamente los que nombra

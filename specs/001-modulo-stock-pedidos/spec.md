@@ -4,7 +4,7 @@
 
 **Fecha de creación**: 2026-07-24
 
-**Estado**: Borrador
+**Estado**: Aprobado — listo para implementación
 
 **Entrada**: Descripción del usuario: "Generá el spec a partir del PRD que está en /PRD.md"
 
@@ -147,7 +147,7 @@ acceso de P4, pero no aporta valor de negocio directo por sí mismo.
 - **Baja/modificación de movimientos**: modificar o eliminar un movimiento recalcula el Stock Actual derivado; la validación de stock no negativo aplica a toda operación, incluida la baja o modificación de una compra ya consumida por ventas posteriores, que se rechaza en lugar de dejar el stock en negativo.
 - **Fallo parcial en movimiento multilínea**: si cualquier línea falla su validación, no se aplica ninguna; el movimiento es todo-o-nada.
 - **Cantidad no entera o ≤ 0**: cualquier línea con cantidad que no sea entero positivo invalida todo el movimiento.
-- **Cantidad o precio fuera de rango**: una línea cuya Cantidad supere 1.000.000 de unidades, o cuyo Precio Unitario o Precio Total supere el máximo admitido, invalida todo el movimiento.
+- **Cantidad o precio fuera de rango**: una línea cuya Cantidad supere 1.000.000 de unidades, cuyo Precio Unitario supere 9.999.999,99 o cuyo Precio Total supere 999.999.999.999,99, invalida todo el movimiento.
 - **Código duplicado**: no se permite dar de alta ni modificar un artículo hacia un Código ya usado.
 - **Baja de entidad referenciada**: no se permite eliminar un artículo con movimientos asociados ni un perfil con usuarios asignados; la operación se rechaza con un error y el registro permanece intacto.
 - **Error de ejecución**: cualquier error en tiempo de ejecución queda registrado en la bitácora de errores sin exponer detalles internos al usuario.
@@ -204,9 +204,9 @@ auditoría de calidad. El sufijo preserva la trazabilidad hacia el PRD del requi
 - **RF-021** (RF-21): El sistema DEBE permitir dar de baja un Movimiento existente (encabezado y detalle).
 - **RF-022** (RF-22): El sistema DEBE permitir modificar un Movimiento existente (encabezado y detalle).
 - **RF-023** (RF-23): El sistema DEBE rechazar el alta o modificación de un Movimiento con alguna línea cuya Cantidad no sea un número entero mayor que 0.
-- **RF-023a** (RF-23): El sistema DEBE rechazar el alta o modificación de un Movimiento con alguna línea cuya Cantidad supere 1.000.000 de unidades, o cuyo Precio Unitario o Precio Total exceda el máximo representable por el sistema, mostrando un error y sin grabar.
+- **RF-023a** (RF-23): El sistema DEBE rechazar el alta o modificación de un Movimiento con alguna línea que exceda alguno de estos límites, mostrando un error y sin grabar: Cantidad mayor a 1.000.000 de unidades; Precio Unitario mayor a 9.999.999,99; Precio Total (Cantidad × Precio Unitario) mayor a 999.999.999.999,99.
 - **RF-023b** (RF-20): El sistema NO DEBE validar el Precio Unitario de una línea contra el Precio de Costo ni el Precio de Venta del artículo: el precio se informa por movimiento y refleja la operación real, sin vínculo con el catálogo.
-- **RF-024** (RF-24): El sistema DEBE rechazar el alta o modificación de un Movimiento de venta que dejaría el Stock Actual de algún artículo por debajo de 0, mostrando un error y sin grabar.
+- **RF-024** (RF-24): El sistema DEBE rechazar el alta o modificación de un Movimiento de venta que dejaría el Stock Actual de algún artículo por debajo de 0, mostrando un error y sin grabar. *(Refinado por RF-024a, que generaliza el invariante a toda operación; se conserva por trazabilidad al RF-24 del PRD y no requiere implementación ni test propios además de los de RF-024a.)*
 - **RF-024a** (RF-21/RF-22/RF-24): El sistema DEBE mantener el invariante Stock Actual ≥ 0 en TODA operación sobre Movimientos, incluidas la baja y la modificación de una compra: si el resultado dejaría el Stock Actual de algún artículo por debajo de 0, la operación se rechaza por completo mostrando un error y sin grabar ningún cambio.
 - **RF-024b** (RF-21/RF-22/RF-24): El sistema DEBE evaluar la validación de stock y aplicar el cambio como una única operación atómica en TODA operación sobre Movimientos (alta, baja y modificación), de modo que dos operaciones concurrentes sobre el mismo artículo no puedan validar ambas contra el mismo Stock Actual. Ante concurrencia, una operación se aplica y la otra se rechaza con el error de stock insuficiente evaluado contra el Stock Actual ya actualizado; el usuario nunca recibe un error de conflicto de concurrencia que lo obligue a reintentar.
 - **RF-024c** (RF-20/RF-21/RF-22): El sistema DEBE tratar cada Movimiento como una unidad todo-o-nada: si cualquier línea de detalle falla una validación durante un alta, baja o modificación, ninguna línea queda aplicada y el Stock Actual de todos los artículos involucrados permanece inalterado.
@@ -216,7 +216,7 @@ auditoría de calidad. El sufijo preserva la trazabilidad hacia el PRD del requi
 
 **Consultas**
 - **RF-025** (RF-25): El sistema DEBE ofrecer la consulta "Consulta de Stock Actual", con parámetro rango de artículos (inicial y final), columnas Código, Descripción y Cantidad —donde Cantidad es el Stock Actual, saldo de movimientos: ventas restan, compras suman—, exportable a Excel.
-- **RF-025a** (RF-25): El sistema DEBE interpretar el rango de artículos como un rango inclusivo sobre el Código, comparado y ordenado alfabéticamente como texto. Ambos extremos son opcionales: si el inicial está vacío no se aplica límite inferior, si el final está vacío no se aplica límite superior, y si ambos están vacíos se consideran todos los artículos; en todos los casos rige el tope de RF-027. Si el Código inicial es alfabéticamente mayor que el final, el resultado es vacío y no un error.
+- **RF-025a** (RF-25): El sistema DEBE interpretar el rango de artículos como un rango inclusivo sobre el Código, comparado y ordenado alfabéticamente como texto. Ambos extremos son opcionales: si el inicial está vacío no se aplica límite inferior, si el final está vacío no se aplica límite superior, y si ambos están vacíos se consideran todos los artículos; en todos los casos rige el tope de RF-027. Si el Código inicial es alfabéticamente mayor que el final, el resultado es vacío y no un error. La comparación y el orden del Código son **insensibles a mayúsculas y sensibles a acentos**, según la regla de ordenamiento alfabético del español; no es un orden ordinal por punto de código. Esta distinción es observable: determina qué filas entran y en qué posición quedan frente al tope de RF-027.
 - **RF-026** (RF-26): El sistema DEBE ofrecer la consulta "Generar Pedido" con parámetros de reposición "solo bajo mínimo" (booleano) y "Modo de Pedido" (Hasta Stock Mínimo / Hasta Punto Pedido / Hasta Stock Ideal), columnas Código, Descripción y Cantidad a Pedir, exportable a Excel, calculada según:
   - "solo bajo mínimo" = No: se listan TODOS los artículos del catálogo, con Cantidad a Pedir = MAX(0, Nivel − Stock Actual); las filas con Cantidad a Pedir 0 se muestran igual, no se omiten.
   - "solo bajo mínimo" = Sí: se listan solo los artículos con Stock Actual < Stock Mínimo, con Cantidad a Pedir = MAX(0, Nivel − Stock Actual). En esta rama el MAX(0, …) es redundante pero se aplica por uniformidad: dado que RF-019 garantiza Stock Mínimo ≤ Nivel y el filtro garantiza Stock Actual < Stock Mínimo, la diferencia es siempre mayor que 0.

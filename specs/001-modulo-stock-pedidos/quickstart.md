@@ -64,7 +64,8 @@ que dejan a cada uno en el Stock Actual indicado (A-001 → 5, A-002 → 15, A-0
 
 **Ejecución**: `GET /api/consultas/generar-pedido?soloBajoMinimo={…}&modoPedido={…}` para cada par.
 
-**Resultado esperado**: exactamente la matriz de 36 cantidades de la tabla del spec. En particular:
+**Resultado esperado**: exactamente la matriz de 6 × 4 = 24 celdas de la tabla del spec — 15
+cantidades asertadas y 9 exclusiones ("—") que deben verificarse como filas ausentes. En particular:
 
 - Con `soloBajoMinimo=false` se listan **los 4** artículos, incluidos los de cantidad 0.
 - Con `soloBajoMinimo=true` se lista **sólo A-001**. A-004 queda fuera porque `0 < 0` es falso.

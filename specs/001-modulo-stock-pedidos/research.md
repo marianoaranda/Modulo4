@@ -173,6 +173,20 @@ usando una **conexión y un `DbContext` independientes** de los de la petición 
 únicamente los errores de ejecución no controlados; las validaciones de negocio esperadas
 (stock insuficiente, código duplicado, contraseña corta) **no** se registran como errores.
 
+**Propiedad del esquema vs. conexión de escritura** — son dos cosas distintas y conviene no
+confundirlas:
+
+- El **esquema** de `dbo.ErrorLog` lo declara y lo versiona `StockDbContext`, junto con el resto de
+  las tablas, en la migración inicial. Hay una sola base y un solo historial de migraciones.
+- La **escritura en runtime** se hace con `ErrorLogDbContext`, que apunta a la misma base pero abre
+  su propia conexión, fuera de la transacción que está fallando.
+
+`ErrorLogDbContext` se configura por lo tanto **sin migraciones propias**: mapea una tabla que ya
+existe. Separar también el esquema obligaría a un segundo historial de migraciones sobre la misma
+base, sin ganancia alguna. Omitir este punto es el modo de fallo natural del diseño: si `ErrorLog`
+no entra en la migración inicial, la tabla nunca se crea y el primer error no controlado falla al
+registrarse con *invalid object name*, incumpliendo CE-008 justo cuando más se lo necesita.
+
 **Justificación**: Es el punto de diseño que más fácilmente se implementa mal. Si el registro del
 error se escribiera con el mismo `DbContext` de la operación fallida, el `ROLLBACK` de esa
 transacción **borraría también el registro del error** — y RF-028 exige que el 100 % de los errores

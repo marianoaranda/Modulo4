@@ -164,7 +164,8 @@ Es el índice de cobertura que sostiene la agregación de `vw_StockActual` (R-01
 | `FullException` | `nvarchar(max)` | NULL | RF-028 |
 
 **Reglas**:
-- Se escribe desde una conexión y un `DbContext` independientes, de modo que el registro sobreviva al rollback de la transacción fallida (R-08). — RF-028, CE-008
+- **Esquema**: la tabla la declara `StockDbContext` y se crea en la **migración inicial**, junto con el resto. No tiene migraciones propias.
+- **Escritura**: se hace desde `ErrorLogDbContext`, con conexión independiente, de modo que el registro sobreviva al rollback de la transacción fallida (R-08). `ErrorLogDbContext` mapea una tabla preexistente. — RF-028, CE-008
 - Registra **sólo errores de ejecución no controlados**. Los rechazos de negocio esperados (stock insuficiente, código duplicado, contraseña corta, rango inválido) son resultados previstos y no se registran acá.
 
 ---
@@ -211,7 +212,7 @@ CantidadAPedir(modo, art, stock) = MAX(0, Nivel(modo, art) - stock)
 
 - Con `soloBajoMinimo = No` se listan **todos** los artículos, incluidos los de cantidad 0. — RF-026
 - Con `soloBajoMinimo = Sí`, `MAX(0, …)` es redundante pero se aplica igual por uniformidad: RF-019 garantiza `StockMinimo ≤ Nivel` y el filtro garantiza `stock < StockMinimo`, por lo que la diferencia siempre es positiva. — RF-026
-- Se valida contra el Conjunto de Datos de Referencia del spec, que fija las 36 cantidades esperadas. — CE-003
+- Se valida contra el Conjunto de Datos de Referencia del spec: una matriz de 6 combinaciones × 4 artículos = 24 celdas, de las cuales 9 son exclusiones ("—") y 15 son cantidades asertables. — CE-003
 
 ---
 
