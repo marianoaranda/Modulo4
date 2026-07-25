@@ -137,20 +137,21 @@ tests/
     │   ├── ArticuloValidatorTests
     │   ├── PasswordHasherTests
     │   └── PasswordPolicyTests
-    ├── Integration/               # Contra el SQL Server de compose
-    │   ├── IntegrationTestBase        # Base por corrida + fixture autenticado
+    ├── Integration/               # WebApplicationFactory in-process + SQL Server de compose
+    │   ├── IntegrationTestBase        # Base efímera por corrida + fixture autenticado
     │   ├── EsquemaArticuloTests       # CHECK, columna calculada, índice único
     │   ├── EsquemaMovimientoTests     # CHECK, cascada, NO ACTION
     │   ├── EsquemaErrorLogTests       # La tabla existe tras migrar
     │   ├── VistaStockActualTests      # Saldo y artículos sin movimientos
-    │   ├── GenerarPedidoTests / GenerarPedidoContractTests
-    │   ├── ConsultaStockActualTests   # Orden, recorte determinista, filtro, rango
-    │   ├── MovimientoInvarianteTests / MovimientoAtomicidadTests / MovimientoNumeracionTests
+    │   ├── GenerarPedidoTests / ConsultaStockActualTests
+    │   ├── MovimientoInvarianteTests / MovimientoModificacionTests
+    │   ├── MovimientoAtomicidadTests / MovimientoNumeracionTests
     │   ├── ConcurrenciaTests          # CE-004: 5 ventas simultáneas
     │   ├── ArticulosTests / UsuariosTests / PerfilesTests / SeguridadTests
+    │   ├── *ContractTests             # GenerarPedido, Movimientos, Articulos, Auth, Seguridad
     │   ├── ExportacionExcelTests
     │   ├── ErrorLogTests              # La bitácora sobrevive al rollback
-    │   └── RendimientoTests           # Categoría Volumen, excluida de la corrida por defecto
+    │   └── RendimientoTests           # Categoría Volumen, excluida por .runsettings
     └── Web/                       # Capa MVC con WebApplicationFactory
         ├── WebTestBase
         ├── GenerarPedidoControllerTests / MovimientosControllerTests

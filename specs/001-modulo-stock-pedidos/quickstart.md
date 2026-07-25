@@ -40,7 +40,9 @@ dotnet run --project src/Stock.Web
 ## Ejecución de pruebas
 
 ```powershell
-# Suite completa
+# Puerta de calidad de la constitución. El .runsettings del proyecto de tests
+# excluye la categoría Volumen, así que NO dispara la siembra de 10.000 artículos
+# y 100.000 líneas en cada corrida.
 dotnet test StockModulo.sln
 
 # Sólo lógica pura, sin base de datos (rápida, apta para el ciclo rojo→verde→refactor)
@@ -48,7 +50,13 @@ dotnet test StockModulo.sln --filter TestCategory=Unit
 
 # Sólo integración: requiere el SQL Server de compose levantado
 dotnet test StockModulo.sln --filter TestCategory=Integration
+
+# Test de volumen de CE-002, excluido de la corrida por defecto. Tarda varios minutos.
+dotnet test StockModulo.sln --filter TestCategory=Volumen
 ```
+
+Los tests de integración hospedan las aplicaciones **in-process** con `WebApplicationFactory`; de
+`docker compose` usan sólo el SQL Server (R-10).
 
 ---
 

@@ -272,14 +272,15 @@ Necesarios para que el sistema sea operable en el primer arranque:
 | RF-013a, RF-018 | Tipos `int` + `CHECK >= 0` en los tres parámetros |
 | RF-014a | FK `MovimientoDetalle.ArticuloId` `NO ACTION` + verificación en servicio |
 | RF-016 | Columna calculada `Articulo.PrecioVenta` |
-| RF-017 | Índice único `Articulo.Codigo` |
+| RF-017, RF-017a | Índice único `Articulo.Codigo` con collation `Modern_Spanish_CI_AS`, que hace la unicidad insensible a mayúsculas y sensible a acentos |
 | RF-019 | `CHECK` de tabla en `Articulo` |
 | RF-020a | `Movimiento.Numero` `IDENTITY` PK |
 | RF-020b | `CHECK Tipo IN (1,2)` |
 | RF-020c | Columna calculada `MovimientoDetalle.PrecioTotal` |
 | RF-020d | Validación de fecha en servicio |
 | RF-021 | FK `MovimientoNumero` `ON DELETE CASCADE` |
-| RF-023, RF-023a | `CHECK Cantidad > 0 AND <= 1000000` |
+| RF-023 | `CHECK Cantidad > 0` |
+| RF-023a | Tope de Cantidad por `CHECK <= 1000000`; los topes de Precio Unitario y Precio Total se validan **sólo en `MovimientoValidator`**, no en la base (la columna sólo tiene `CHECK >= 0`) |
 | RF-023b | Ausencia deliberada de validación cruzada de precio |
 | RF-024a/b/c | Protocolo de escritura de movimientos |
 | RF-025a | Rango sobre `Codigo` con collation `CI_AS` |

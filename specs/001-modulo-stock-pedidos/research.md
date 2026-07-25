@@ -223,11 +223,29 @@ login.
 
 ## R-10: Estrategia de pruebas para el ciclo Test-First (Principio I)
 
-**Decisión**: Un único proyecto `tests/Stock.Tests` (NUnit) con dos categorías separadas por
+**Decisión**: Un único proyecto `tests/Stock.Tests` (NUnit) con **tres** categorías separadas por
 `[Category]`:
 
 - **`Unit`** — sin base de datos. Cubre la calculadora de pedido contra el Conjunto de Datos de Referencia del spec (las 6 combinaciones), el cálculo de Precio de Venta, el hashing de contraseñas y los validadores de artículo y movimiento.
-- **`Integration`** — contra el SQL Server de `docker compose`, cada corrida sobre una base propia creada y migrada al inicio. Cubre las consultas, el invariante de stock, la atomicidad todo-o-nada, la concurrencia de CE-004 y el flujo de autenticación.
+- **`Integration`** — contra el SQL Server de `docker compose`, cada corrida sobre una base propia creada y migrada al inicio. Cubre el esquema, las consultas, el invariante de stock, la atomicidad todo-o-nada, la concurrencia de CE-004, la capa web y el flujo de autenticación.
+- **`Volumen`** — el test de rendimiento de CE-002, que siembra 10.000 artículos y 100.000 líneas. **Excluida de la corrida por defecto** mediante `.runsettings`, porque la puerta de calidad de la constitución es `dotnet test StockModulo.sln` a secas: sin la exclusión, cada validación de rutina pagaría el costo de la siembra masiva.
+
+**Hospedaje de las aplicaciones durante los tests**: `WebApplicationFactory<T>` **in-process**, no
+los contenedores de `docker compose`. De compose se usa **sólo el SQL Server**. Los tests de la API
+levantan `WebApplicationFactory<Stock.Api.Program>` y los de la capa web
+`WebApplicationFactory<Stock.Web.Program>` con la API simulada.
+
+**Justificación**: hospedar in-process elimina el ciclo de rebuild de imagen entre corridas, permite
+inyectar la cadena de conexión de la base efímera de cada corrida y hace que el fixture autenticado
+sea simplemente un token pedido al cliente de la factory, en vez de un login HTTP contra un
+contenedor. La base de datos sí debe ser real por lo dicho arriba (bloqueos, collations, planes de
+agregación), pero el host HTTP no aporta fidelidad y sí latencia.
+
+**Consecuencia a tener en cuenta**: ambas aplicaciones exponen un `Program` de *top-level
+statements*, y el proyecto de tests referencia a las dos. El tipo `Program` sería ambiguo, así que
+cada aplicación debe declarar `public partial class Program` en su propio namespace
+(`Stock.Api.Program`, `Stock.Web.Program`) y los tests referenciarlo con nombre calificado. Sin esto
+el proyecto de tests no compila.
 
 **Justificación**: La lógica de pedido —el corazón del módulo— es una función pura sobre
 parámetros de reposición y saldo, por lo que puede desarrollarse íntegramente en rojo→verde→refactor

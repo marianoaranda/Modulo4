@@ -180,7 +180,7 @@ auditoría de calidad. El sufijo preserva la trazabilidad hacia el PRD del requi
 - **RF-009** (RF-09): El sistema DEBE rechazar el alta o modificación de un usuario cuya contraseña tenga menos de 8 caracteres alfanuméricos, mostrando un error y sin grabar.
 
 **Acceso**
-- **RF-010** (RF-10): El sistema DEBE restringir la carga de usuarios (RF-004 a RF-006) exclusivamente al perfil administrador.
+- **RF-010** (RF-10): El sistema DEBE restringir la carga de usuarios (RF-004 a RF-006) exclusivamente al perfil administrador, respondiendo **prohibido (403)** a un usuario autenticado cuyo perfil no sea administrador. Se distingue del no autorizado (401) de RF-012, que corresponde a la ausencia de sesión válida.
 - **RF-011** (RF-11): El sistema DEBE ofrecer una pantalla de inicio de sesión que valide usuario y contraseña contra la representación protegida (usando el salt del usuario), mostrando "Usuario o contraseña incorrectos" ante credenciales inválidas.
 - **RF-012** (RF-12): El sistema DEBE exigir una sesión autenticada válida para toda funcionalidad salvo el inicio de sesión, y rechazar (no autorizado) toda solicitud a una funcionalidad protegida sin sesión válida.
 
@@ -192,7 +192,8 @@ auditoría de calidad. El sufijo preserva la trazabilidad hacia el PRD del requi
 - **RF-015** (RF-15): El sistema DEBE permitir modificar los datos de un artículo existente.
 - **RF-016** (RF-16): El sistema DEBE calcular el Precio de Venta como Precio de Costo × (1 + Margen / 100).
 - **RF-017** (RF-17): El sistema DEBE rechazar el alta o modificación de un artículo con Código duplicado (el Código es único).
-- **RF-018** (RF-18): El sistema DEBE rechazar el alta o modificación si Precio de Costo, Margen, Stock Mínimo, Punto de Pedido o Stock Ideal es negativo, o si alguno de los tres parámetros de reposición no es un número entero.
+- **RF-017a** (RF-17): El sistema DEBE evaluar la unicidad del Código con la misma regla de comparación que su ordenamiento (RF-025a): **insensible a mayúsculas y sensible a acentos**. En consecuencia, `A-001` y `a-001` son el mismo Código y el segundo se rechaza como duplicado, mientras que dos códigos que difieren en un acento son distintos.
+- **RF-018** (RF-18): El sistema DEBE rechazar el alta o modificación si Precio de Costo, Margen, Stock Mínimo, Punto de Pedido o Stock Ideal es negativo, o si alguno de los tres parámetros de reposición incumple el tipo entero que fija RF-013a.
 - **RF-019** (RF-19): El sistema DEBE rechazar el alta o modificación que no cumpla Stock Mínimo ≤ Punto de Pedido ≤ Stock Ideal.
 
 **Movimientos**
@@ -254,7 +255,7 @@ movimientos de un artículo. "Cantidad" se emplea únicamente como rótulo de la
 - **CE-001**: El usuario obtiene la lista de artículos a pedir eligiendo los dos parámetros de reposición ("solo bajo mínimo" y "Modo de Pedido") y ejecutando una única consulta, sin ningún cálculo manual. El filtro por descripción de RF-027a es un acotador opcional del volumen, no un parámetro de reposición, y su omisión no altera el cálculo.
 - **CE-002**: Las consultas "Consulta de Stock Actual" y "Generar Pedido" responden en menos de 3 segundos (p95) sobre un volumen de referencia de 10.000 artículos y 100.000 líneas de detalle de movimiento.
 - **CE-003**: Las 6 combinaciones de parámetros de "Generar Pedido" producen exactamente las cantidades del Conjunto de Datos de Referencia definido abajo, y esa cantidad nunca es negativa.
-- **CE-004**: El sistema opera correctamente con entre 1 y 5 usuarios concurrentes sin degradación funcional. Se verifica lanzando 5 ventas simultáneas del mismo artículo cuya suma excede el stock disponible y comprobando que la cantidad total efectivamente grabada nunca supera el stock disponible previo y que el Stock Actual resultante es ≥ 0.
+- **CE-004**: Con hasta 5 usuarios concurrentes, las consultas siguen cumpliendo el presupuesto de latencia de CE-002 y ninguna operación concurrente puede violar el invariante de stock no negativo. Se verifica lanzando 5 ventas simultáneas del mismo artículo cuya suma excede el stock disponible y comprobando que la cantidad total efectivamente grabada nunca supera el stock disponible previo y que el Stock Actual resultante es ≥ 0.
 - **CE-005**: El Stock Actual de un artículo nunca queda por debajo de 0: ninguna alta, baja ni modificación de movimiento (venta o compra) puede grabarse si el resultado violara ese invariante.
 - **CE-006**: Ninguna contraseña puede recuperarse en texto plano; dos usuarios con la misma contraseña presentan representaciones protegidas distintas en el 100% de los casos.
 - **CE-007**: Ninguna funcionalidad distinta del inicio de sesión es accesible sin una sesión autenticada válida.
