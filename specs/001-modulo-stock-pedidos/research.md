@@ -101,14 +101,21 @@ de modo que no se revele la existencia de la cuenta.
 
 **Decisión**: JWT firmado con **HS256**, vigencia de **8 horas**, sin *refresh token*. La clave de
 firma se inyecta por variable de entorno. `ClockSkew` se fija en cero para que la expiración sea
-exacta. Claims: `sub` (UsuarioId), `name` (Usuario), `role` (Descripción del perfil), `exp`.
+exacta. Claims: `sub` (UsuarioId), `name` (Usuario), `role` (Descripción del perfil, **sólo para
+mostrar**), `es_admin` (`"true"` / `"false"`, derivado de la marca inmutable `Perfil.EsAdministrador`)
+y `exp`.
 
 **Justificación**: Ocho horas cubren un turno completo de trabajo del comercio sin obligar a
 reautenticar en medio de la operación, que es el patrón de uso real (un vendedor abre el sistema al
 inicio del día). Un *refresh token* agregaría almacenamiento, rotación y revocación para un sistema
 de 1 a 5 usuarios sin requisito que lo pida: complejidad no justificada según la constitución.
-El claim `role` sostiene RF-010 (restricción de la carga de usuarios al perfil administrador)
-mediante autorización basada en políticas.
+El claim **`es_admin`** —no `role`— sostiene RF-010 (restricción de la carga de usuarios al perfil
+administrador) mediante autorización basada en políticas. La separación es deliberada: RF-003 permite
+modificar libremente la Descripción del perfil, de modo que usar `role` como base de la política
+haría que renombrar el perfil administrador dejara al sistema sin administrador, y que renombrar
+otro perfil a "administrador" concediera el privilegio. `es_admin` se deriva de `Perfil.EsAdministrador`,
+que la siembra fija y el ABM no expone (RF-003a). `role` se conserva únicamente como dato de
+presentación.
 
 **Alternativas consideradas**:
 - *Vigencia corta (15–30 min) con refresh token*: postura estándar en sistemas expuestos a internet; desproporcionada para un comercio de barrio con un puñado de usuarios en red local.
@@ -274,7 +281,7 @@ serían inverificables con un doble en memoria: exigen SQL Server real.
 | R-01 | Stock Actual | Calculado por agregación en `vw_StockActual`; sin campo persistido |
 | R-02 | Concurrencia | Bloqueo pesimista `UPDLOCK` sobre `Articulo`, en orden ascendente de Id |
 | R-03 | Contraseñas | PBKDF2-HMAC-SHA256, 210k iteraciones, salt de 16 bytes en columna propia |
-| R-04 | JWT | HS256, 8 horas, sin refresh token, clave por variable de entorno |
+| R-04 | JWT | HS256, 8 horas, sin refresh token, clave por variable de entorno; autorización por el claim `es_admin`, no por `role` |
 | R-05 | Excel | ClosedXML (MIT), `.xlsx` generado en la API |
 | R-06 | Filtro | Collation `Modern_Spanish_CI_AI` sobre `Descripcion` + `LIKE '%…%'` |
 | R-07 | Número de movimiento | `IDENTITY` como clave primaria del encabezado |

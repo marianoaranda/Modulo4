@@ -25,11 +25,11 @@ La distinción entre `400`, `409` y `422` es deliberada y hace testeable el comp
 
 | Código | Significado | Casos | Requisito |
 |--------|-------------|-------|-----------|
-| `400` | Entrada mal formada o que viola una regla de validación de campo | Cantidad no entera o ≤ 0, cantidad > 1.000.000, contraseña < 8 alfanuméricos, valores negativos, `StockMinimo ≤ PuntoPedido ≤ StockIdeal` incumplido, fecha futura | RF-009, RF-018, RF-019, RF-020d, RF-023, RF-023a |
+| `400` | Entrada mal formada o que viola una regla de validación de campo | Valor no entero en un campo entero (rechazado al deserializar), cantidad ≤ 0 o > 1.000.000, Precio Unitario negativo o fuera de tope, contraseña que incumple la política, valores negativos, `StockMinimo ≤ PuntoPedido ≤ StockIdeal` incumplido, fecha futura, parámetro de reposición ausente | RF-009, RF-018, RF-018a, RF-019, RF-020d, RF-023, RF-023a, RF-023c, RF-026b |
 | `401` | Sin sesión válida, o credenciales incorrectas en el login | Token ausente, inválido o expirado; usuario o contraseña incorrectos | RF-011, RF-012 |
-| `403` | Autenticado pero sin el perfil requerido | Usuario no administrador contra `/api/usuarios` | RF-010 |
+| `403` | Autenticado pero sin el perfil requerido | Usuario sin el claim `es_admin` contra `/api/usuarios` o `/api/perfiles`. Se evalúa la marca inmutable del perfil, nunca su Descripción | RF-003a, RF-010, RF-010a |
 | `404` | El recurso no existe | Id inexistente en cualquier ABM | — |
-| `409` | Conflicto con el estado actual de los datos | Código de artículo duplicado, baja de artículo con movimientos, baja de perfil con usuarios | RF-002a, RF-014a, RF-017 |
+| `409` | Conflicto con el estado actual de los datos | Código de artículo duplicado, baja de artículo con movimientos, baja de perfil con usuarios, baja del perfil administrador, baja o cambio de perfil del último usuario administrador | RF-002a, RF-002b, RF-005a, RF-014a, RF-017 |
 | `422` | Sintácticamente válido pero viola un invariante de negocio | La operación dejaría el Stock Actual por debajo de 0 | RF-024, RF-024a |
 | `500` | Error de ejecución no controlado | Cualquier excepción no prevista; queda en `ErrorLog` | RF-028 |
 

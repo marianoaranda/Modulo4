@@ -16,6 +16,7 @@ erDiagram
     Perfil {
         int PerfilId PK
         nvarchar Descripcion
+        bit EsAdministrador
     }
     Usuario {
         int UsuarioId PK
@@ -71,9 +72,12 @@ rollback de la transacción que falló (R-08).
 |-------|------|---------------|-----------|
 | `PerfilId` | `int IDENTITY` | PK | RF-001 |
 | `Descripcion` | `nvarchar(100)` | NOT NULL | RF-001, RF-003 |
+| `EsAdministrador` | `bit` | NOT NULL, DEFAULT 0, índice único filtrado `WHERE EsAdministrador = 1` | RF-003a, RF-010 |
 
 **Reglas**:
 - Baja restringida: se rechaza si existen usuarios con este perfil. FK `Usuario.PerfilId` con `ON DELETE NO ACTION`, más verificación previa en el servicio para devolver un error de negocio legible en vez de una violación de FK. — RF-002a
+- `EsAdministrador` es la **única** base de las decisiones de autorización. Se fija en la siembra inicial; ningún DTO de alta o modificación de perfil lo acepta, de modo que la Descripción puede cambiar libremente (RF-003) sin efecto sobre los privilegios. El índice único filtrado garantiza a nivel de esquema que exista a lo sumo un perfil administrador. — RF-003a
+- El perfil con `EsAdministrador = 1` no puede eliminarse, tenga o no usuarios asignados. Verificación en el servicio, previa a la de RF-002a. — RF-002b
 
 ### Usuario
 
@@ -88,8 +92,9 @@ rollback de la transacción que falló (R-08).
 
 **Reglas**:
 - `Hash` y `Salt` son columnas **separadas**, según la forma exigida por el PRD. Derivación PBKDF2-HMAC-SHA256, 210.000 iteraciones, salt aleatorio de 16 bytes por usuario (R-03). — RF-007, RF-008
-- La contraseña en claro nunca se persiste ni se registra en logs. Validación de mínimo 8 caracteres alfanuméricos **antes** de derivar el hash. — RF-009
+- La contraseña en claro nunca se persiste ni se registra en logs. Validación de la política de RF-009 —mínimo 8 caracteres, con al menos una letra y un dígito— **antes** de derivar el hash. — RF-009
 - `Hash`/`Salt` nunca se exponen en ningún DTO de respuesta de la API.
+- **Último administrador**: se rechaza la baja de un usuario, y la modificación que le cambie el `PerfilId`, si es el único usuario cuyo perfil tiene `EsAdministrador = 1`. La verificación va **dentro de la misma transacción** que la escritura, sobre el conteo de administradores restantes, para que dos bajas concurrentes no puedan eliminar a los dos últimos. — RF-005a
 
 ### Artículo
 
@@ -140,7 +145,7 @@ Venta; se adopta ésta por ser la del motor y se documenta acá para que sea ver
 | `MovimientoNumero` | `int` | NOT NULL, FK → `Movimiento`, `ON DELETE CASCADE` | RF-021 |
 | `ArticuloId` | `int` | NOT NULL, FK → `Articulo`, `ON DELETE NO ACTION` | RF-014a |
 | `Cantidad` | `int` | NOT NULL, `CHECK > 0 AND <= 1000000` | RF-023, RF-023a |
-| `PrecioUnitario` | `decimal(18,2)` | NOT NULL, `CHECK >= 0` | RF-020 |
+| `PrecioUnitario` | `decimal(18,2)` | NOT NULL, `CHECK >= 0` | RF-020, RF-023c |
 | `PrecioTotal` | `decimal(18,2)` | **Columna calculada PERSISTED** | RF-020c |
 
 **Reglas**:
@@ -257,7 +262,7 @@ alcanza— falla con *stock insuficiente*, nunca con un error de conflicto que e
 
 Necesarios para que el sistema sea operable en el primer arranque:
 
-- Perfil `administrador` (y, por utilidad, `administrativo` y `vendedor`). — RF-001
+- Perfil `administrador` con `EsAdministrador = 1` (y, por utilidad, `administrativo` y `vendedor` con `EsAdministrador = 0`). Es el **único** punto del sistema donde se establece la marca. — RF-001, RF-003a
 - Usuario `admin` con perfil administrador, hash derivado con salt propio. — Supuesto del spec sobre el administrador inicial
 - La contraseña inicial se toma de una variable de entorno; no se hardcodea ni se commitea. — Principio IV
 
@@ -268,8 +273,13 @@ Necesarios para que el sistema sea operable en el primer arranque:
 | Requisito | Dónde se implementa |
 |-----------|---------------------|
 | RF-002a | FK `Usuario.PerfilId` `NO ACTION` + verificación en servicio |
+| RF-002b | Verificación de `EsAdministrador = 1` en `PerfilService`, previa a la de RF-002a |
+| RF-003a, RF-010 | `Perfil.EsAdministrador` + índice único filtrado + claim `es_admin` (R-04); la Descripción no interviene |
+| RF-005a | Conteo de administradores restantes dentro de la transacción de baja/modificación en `UsuarioService` |
 | RF-007, RF-008 | `Usuario.Hash`, `Usuario.Salt` (columnas separadas) |
 | RF-013a, RF-018 | Tipos `int` + `CHECK >= 0` en los tres parámetros |
+| RF-018a | Tipado `int` de los DTOs de entrada: el no entero se rechaza al deserializar, antes de cualquier regla de negocio |
+| RF-023c | `CHECK (PrecioUnitario >= 0)` en `MovimientoDetalle`, más la validación equivalente en `MovimientoValidator` |
 | RF-014a | FK `MovimientoDetalle.ArticuloId` `NO ACTION` + verificación en servicio |
 | RF-016 | Columna calculada `Articulo.PrecioVenta` |
 | RF-017, RF-017a | Índice único `Articulo.Codigo` con collation `Modern_Spanish_CI_AS`, que hace la unicidad insensible a mayúsculas y sensible a acentos |
@@ -280,7 +290,7 @@ Necesarios para que el sistema sea operable en el primer arranque:
 | RF-020d | Validación de fecha en servicio |
 | RF-021 | FK `MovimientoNumero` `ON DELETE CASCADE` |
 | RF-023 | `CHECK Cantidad > 0` |
-| RF-023a | Tope de Cantidad por `CHECK <= 1000000`; los topes de Precio Unitario y Precio Total se validan **sólo en `MovimientoValidator`**, no en la base (la columna sólo tiene `CHECK >= 0`) |
+| RF-023a | Tope de Cantidad por `CHECK <= 1000000`; los topes de Precio Unitario y Precio Total se validan **sólo en `MovimientoValidator`**, no en la base (la columna sólo tiene el `CHECK >= 0` de RF-023c). La asimetría es deliberada: el esquema protege el signo y el rango de Cantidad —donde un valor absurdo corrompería el saldo—, mientras que los techos monetarios son política de negocio, más propensa a cambiar, y viven en una sola capa. `decimal(18,2)` cubre con holgura el producto máximo (~9,99 × 10¹²), de modo que no hay riesgo de desbordamiento silencioso si la validación se saltara |
 | RF-023b | Ausencia deliberada de validación cruzada de precio |
 | RF-024a/b/c | Protocolo de escritura de movimientos |
 | RF-025a | Rango sobre `Codigo` con collation `CI_AS` |

@@ -28,6 +28,10 @@ forma independiente.
 - **[P]**: puede correr en paralelo — **archivos distintos**, sin dependencias pendientes
 - **[Story]**: historia a la que pertenece la tarea (US1…US5)
 - Toda tarea incluye la ruta exacta del archivo
+- Un **sufijo alfabético** (por ejemplo `T105a`) identifica una tarea incorporada después de la
+  numeración inicial, que se ejecuta inmediatamente después de la tarea base con el mismo número.
+  Es la misma convención que usa `spec.md` para los requisitos derivados y evita renumerar la lista
+  completa cada vez que una auditoría agrega trabajo.
 
 ## Convención de rutas
 
@@ -52,10 +56,12 @@ Según la estructura fijada en [plan.md](./plan.md):
 - [ ] T007 Agregar a `tests/Stock.Tests/Stock.Tests.csproj` los paquetes `NUnit`, `NUnit3TestAdapter`, `Microsoft.NET.Test.Sdk` y `Microsoft.AspNetCore.Mvc.Testing` (modifica el archivo creado por T004)
 - [ ] T008 Agregar a `src/Stock.Web/Stock.Web.csproj` el soporte de `HttpClient` tipado (`Microsoft.Extensions.Http`) y `Microsoft.EntityFrameworkCore.SqlServer`, este último **sólo** para escribir la bitácora de errores (modifica el archivo creado por T003)
 - [ ] T009 Declarar `public partial class Program` en su propio namespace en `src/Stock.Api/Program.cs` y `src/Stock.Web/Program.cs`, para que `Stock.Api.Program` y `Stock.Web.Program` no colisionen en el proyecto de tests, que referencia a ambos (R-10)
-- [ ] T010 Crear `docker-compose.yml` en la raíz con SQL Server 2017, `Stock.Api` en el puerto 5279 y `Stock.Web` en el 5280, según [quickstart.md](./quickstart.md)
+- [ ] T010 Crear `docker-compose.yml` en la raíz con SQL Server 2017, `Stock.Api` en el puerto 5279 y `Stock.Web` en el 5280, según [quickstart.md](./quickstart.md). **Ningún valor secreto literal**: la contraseña `SA` de SQL Server, la clave de firma JWT y `SEED_ADMIN_PASSWORD` se referencian como `${SA_PASSWORD}`, `${JWT_SIGNING_KEY}` y `${SEED_ADMIN_PASSWORD}`, que Docker Compose resuelve desde el `.env` de T013a
 - [ ] T011 [P] Crear `src/Stock.Api/Dockerfile` y `src/Stock.Web/Dockerfile`
-- [ ] T012 Configurar la lectura por variable de entorno de la cadena de conexión, la clave de firma JWT y `SEED_ADMIN_PASSWORD` en `src/Stock.Api/appsettings.json`, `src/Stock.Web/appsettings.json` y `docker-compose.yml`, sin ningún secreto en el código (Principio IV; modifica el archivo creado por T010)
-- [ ] T013 [P] Crear `.gitignore` en la raíz excluyendo `bin/`, `obj/`, `*.user` y archivos de secretos locales
+- [ ] T012 Configurar la lectura por variable de entorno de la cadena de conexión, la clave de firma JWT y `SEED_ADMIN_PASSWORD` en `src/Stock.Api/appsettings.json` y `src/Stock.Web/appsettings.json`, dejando los valores **vacíos** en el archivo versionado y haciendo que la API falle al arrancar con un mensaje explícito si alguno no está definido, en vez de caer en un valor por defecto (Principio IV)
+- [ ] T013 [P] Crear `.gitignore` en la raíz excluyendo `bin/`, `obj/`, `*.user`, `.env` y `*.env.local`, de modo que ningún archivo de secretos locales pueda commitearse por descuido
+- [ ] T013a Crear `.env.example` en la raíz con las tres claves (`SA_PASSWORD`, `JWT_SIGNING_KEY`, `SEED_ADMIN_PASSWORD`) y **placeholders, no valores reales**, y crear el `.env` local a partir de él con valores generados. `.env.example` se commitea; `.env` queda ignorado por T013 (Principio IV; depende de T010 y T013)
+- [ ] T013b [P] Documentar en [quickstart.md](./quickstart.md) y en `AGENTS.md` que el primer paso de la puesta en marcha es `cp .env.example .env` y completar los tres valores, reemplazando la mención de la credencial fija `admin / Admin1234` de `AGENTS.md` por una referencia a `SEED_ADMIN_PASSWORD`
 - [ ] T014 [P] Definir las categorías `Unit`, `Integration` y `Volumen` en `tests/Stock.Tests/TestCategories.cs`
 - [ ] T015 Crear `tests/Stock.Tests/.runsettings` que excluya la categoría `Volumen`, y referenciarlo desde `tests/Stock.Tests/Stock.Tests.csproj` con `RunSettingsFilePath`, de modo que `dotnet test StockModulo.sln` —la puerta de calidad literal de la constitución— **no** dispare la siembra masiva de CE-002 (desviación registrada en Complexity Tracking de [plan.md](./plan.md))
 
@@ -73,7 +79,7 @@ historial de migraciones; fragmentarlo por historia agregaría churn sin benefic
 
 **Nota sobre el ciclo rojo→verde del esquema**: el esquema **codifica reglas de negocio** (`CHECK`
 de orden de stocks, columnas calculadas de precio, índice único de Código, collations). Por eso la
-fase se ordena en tres bloques: los tests (T016–T019) se escriben primero y no compilan; el
+fase se ordena en tres bloques: los tests (T016–T019a) se escriben primero y no compilan; el
 andamiaje (T020–T029) los hace compilar y **fallar contra tablas reales sin restricciones**, lo que
 T030 verifica explícitamente; recién entonces las configuraciones (T031–T037) los ponen en verde,
 que es lo que confirma T038. La migración desnuda de T029 existe exactamente para producir ese
@@ -83,13 +89,14 @@ el primer momento, sin haber demostrado nada.
 ### Bloque 1 — Tests del esquema ⚠️ ESCRIBIR PRIMERO. No compilan: ése es el primer rojo
 
 - [ ] T016 [P] Tests de las restricciones de `Articulo` a nivel de base (rechazo de `StockMinimo > PuntoPedido`, de valores negativos y de `Codigo` duplicado —incluida la colisión por diferencia de mayúsculas—, y cálculo de `PrecioVenta`) en `tests/Stock.Tests/Integration/EsquemaArticuloTests.cs` (RF-016, RF-017, RF-017a, RF-018, RF-019)
-- [ ] T017 [P] Tests de las restricciones de `MovimientoDetalle` a nivel de base (rechazo de `Cantidad` ≤ 0 y > 1.000.000, rechazo de `PrecioUnitario` negativo, cálculo de `PrecioTotal`, borrado en cascada desde el encabezado y `NO ACTION` hacia `Articulo`) en `tests/Stock.Tests/Integration/EsquemaMovimientoTests.cs` (RF-014a, RF-020c, RF-021, RF-023, RF-023a)
+- [ ] T017 [P] Tests de las restricciones de `MovimientoDetalle` a nivel de base (rechazo de `Cantidad` ≤ 0 y > 1.000.000, rechazo de `PrecioUnitario` negativo y aceptación de `PrecioUnitario` = 0, cálculo de `PrecioTotal`, borrado en cascada desde el encabezado y `NO ACTION` hacia `Articulo`) en `tests/Stock.Tests/Integration/EsquemaMovimientoTests.cs` (RF-014a, RF-020c, RF-021, RF-023, RF-023a, RF-023c)
 - [ ] T018 [P] Test de que `vw_StockActual` devuelve 0 para artículos sin movimientos y el saldo correcto con compras y ventas, en `tests/Stock.Tests/Integration/VistaStockActualTests.cs` (RF-030)
 - [ ] T019 [P] Test de que la tabla `dbo.ErrorLog` existe y admite inserción tras aplicar las migraciones, en `tests/Stock.Tests/Integration/EsquemaErrorLogTests.cs` (RF-028)
+- [ ] T019a [P] Test de la restricción de unicidad del perfil administrador a nivel de base en `tests/Stock.Tests/Integration/EsquemaPerfilTests.cs`: insertar un segundo `Perfil` con `EsAdministrador = 1` se rechaza por el índice único filtrado, mientras que varios perfiles con `EsAdministrador = 0` conviven sin problema (RF-003a)
 
 ### Bloque 2 — Andamiaje mínimo: hace que los tests compilen y fallen contra la base real
 
-- [ ] T020 [P] Crear la entidad `Perfil` en `src/Stock.Api/Domain/Entities/Perfil.cs`
+- [ ] T020 [P] Crear la entidad `Perfil` en `src/Stock.Api/Domain/Entities/Perfil.cs` con `Descripcion` y la marca `EsAdministrador` (`bool`), que es la identidad de autorización estable e independiente de la Descripción (RF-003a)
 - [ ] T021 [P] Crear la entidad `Usuario` en `src/Stock.Api/Domain/Entities/Usuario.cs` con `Hash` y `Salt` como propiedades separadas
 - [ ] T022 [P] Crear la entidad `Articulo` en `src/Stock.Api/Domain/Entities/Articulo.cs` con los tres parámetros de reposición como `int` (RF-013a)
 - [ ] T023 [P] Crear la entidad `Movimiento` y el enum `TipoMovimiento` (Compra=1, Venta=2) en `src/Stock.Api/Domain/Entities/Movimiento.cs`
@@ -99,25 +106,25 @@ el primer momento, sin haber demostrado nada.
 - [ ] T027 Registrar `StockDbContext` en `src/Stock.Api/Program.cs` con la cadena de conexión tomada de configuración. Es el mínimo necesario para que la `WebApplicationFactory` de T028 arranque: sin este registro, los tests del Bloque 1 fallarían por error de arranque y la puerta T030 verificaría un rojo por el motivo equivocado
 - [ ] T028 Crear la base de tests de integración en `tests/Stock.Tests/Integration/IntegrationTestBase.cs`: levanta `WebApplicationFactory<Stock.Api.Program>` in-process, crea una base efímera por corrida en el SQL Server de compose, le inyecta la cadena de conexión, aplica migraciones y la elimina al finalizar (R-10)
 - [ ] T029 Generar la migración desnuda en `src/Stock.Api/Data/Migrations/`: crea las seis tablas **sin** `CHECK`, sin columnas calculadas, sin índices únicos, sin collations y sin la vista
-- [ ] T030 **Verificar el rojo**: T016–T019 compilan, arrancan y fallan **por la restricción ausente**, no por error de configuración. Un test que pase en este punto está mal escrito y debe corregirse antes de seguir
+- [ ] T030 **Verificar el rojo**: T016–T019a compilan, arrancan y fallan **por la restricción ausente**, no por error de configuración. Un test que pase en este punto está mal escrito y debe corregirse antes de seguir
 
 ### Bloque 3 — Configuraciones: ponen los tests en verde
 
 - [ ] T031 [P] Configurar `Articulo` en `src/Stock.Api/Data/Configurations/ArticuloConfiguration.cs`: índice único de `Codigo`, collation `Modern_Spanish_CI_AS` en `Codigo`, collation `Modern_Spanish_CI_AI` en `Descripcion`, columna calculada persistida `PrecioVenta`, `CHECK` de no negatividad y `CHECK (StockMinimo <= PuntoPedido AND PuntoPedido <= StockIdeal)`
 - [ ] T032 [P] Configurar `Movimiento` en `src/Stock.Api/Data/Configurations/MovimientoConfiguration.cs`: `Numero` como PK `IDENTITY` y `CHECK Tipo IN (1,2)`
-- [ ] T033 [P] Configurar `MovimientoDetalle` en `src/Stock.Api/Data/Configurations/MovimientoDetalleConfiguration.cs`: columna calculada persistida `PrecioTotal`, `CHECK (Cantidad > 0 AND Cantidad <= 1000000)`, `CHECK (PrecioUnitario >= 0)`, FK a `Movimiento` con `CASCADE`, FK a `Articulo` con `NO ACTION` e índice `IX_MovimientoDetalle_ArticuloId` con `INCLUDE (Cantidad, MovimientoNumero)`
-- [ ] T034 [P] Configurar `Usuario` y `Perfil` en `src/Stock.Api/Data/Configurations/SeguridadConfiguration.cs`: índice único de `NombreUsuario` y FK `Usuario.PerfilId` con `NO ACTION`
+- [ ] T033 [P] Configurar `MovimientoDetalle` en `src/Stock.Api/Data/Configurations/MovimientoDetalleConfiguration.cs`: columna calculada persistida `PrecioTotal`, `CHECK (Cantidad > 0 AND Cantidad <= 1000000)`, `CHECK (PrecioUnitario >= 0)` (RF-023c), FK a `Movimiento` con `CASCADE`, FK a `Articulo` con `NO ACTION` e índice `IX_MovimientoDetalle_ArticuloId` con `INCLUDE (Cantidad, MovimientoNumero)`
+- [ ] T034 [P] Configurar `Usuario` y `Perfil` en `src/Stock.Api/Data/Configurations/SeguridadConfiguration.cs`: índice único de `NombreUsuario`, FK `Usuario.PerfilId` con `NO ACTION`, `Perfil.EsAdministrador` con `DEFAULT 0` e **índice único filtrado** `WHERE EsAdministrador = 1`, que garantiza en el esquema que exista a lo sumo un perfil administrador (RF-003a)
 - [ ] T035 [P] Configurar `ErrorLog` en `src/Stock.Api/Data/Configurations/ErrorLogConfiguration.cs` (columnas de RF-028, sin relaciones)
 - [ ] T036 Crear la entidad sin clave `StockActualView` en `src/Stock.Api/Data/Views/StockActualView.cs` mapeada a `vw_StockActual`
-- [ ] T037 Generar la migración de restricciones en `src/Stock.Api/Data/Migrations/`: agrega `CHECK`, columnas calculadas, índices únicos y collations, más el `CREATE VIEW dbo.vw_StockActual` con el `LEFT JOIN` e `ISNULL(...,0)` de [data-model.md](./data-model.md)
-- [ ] T038 **Verificar el verde**: T016–T019 pasan contra la migración completa
+- [ ] T037 Generar la migración de restricciones en `src/Stock.Api/Data/Migrations/`: agrega `CHECK`, columnas calculadas, índices únicos —incluido el filtrado de `Perfil.EsAdministrador`— y collations, más el `CREATE VIEW dbo.vw_StockActual` con el `LEFT JOIN` e `ISNULL(...,0)` de [data-model.md](./data-model.md)
+- [ ] T038 **Verificar el verde**: T016–T019a pasan contra la migración completa
 
 ### Bloque 4 — Andamiaje de aplicación
 
-- [ ] T039 [P] Crear la siembra de perfiles base (administrador, administrativo, vendedor) en `src/Stock.Api/Data/Seed/DbSeeder.cs`
+- [ ] T039 [P] Crear la siembra de perfiles base en `src/Stock.Api/Data/Seed/DbSeeder.cs`: `administrador` con `EsAdministrador = true`, `administrativo` y `vendedor` con `false`. Es el **único** lugar del sistema que establece la marca (RF-003a)
 - [ ] T040 Completar `src/Stock.Api/Program.cs`: controladores, respuestas `application/problem+json` y el flag `ApplyMigrationsOnStartup` usado sólo en compose (el registro del `DbContext` ya lo hizo T027)
-- [ ] T041 [P] Completar `src/Stock.Web/Program.cs`: MVC, `HttpClient` tipado apuntando a `Stock.Api`, páginas de error y un **filtro de autorización global** que exija sesión, de modo que ninguna vista protegida se renderice antes de que la API responda 401 (RF-012)
-- [ ] T042 [P] Crear la base de tests de la capa web en `tests/Stock.Tests/Web/WebTestBase.cs` usando `WebApplicationFactory<Stock.Web.Program>` con la API simulada (R-10)
+- [ ] T041 [P] Completar `src/Stock.Web/Program.cs`: MVC, `HttpClient` tipado apuntando a `Stock.Api` y páginas de error. **Sin el filtro de autorización global**: ese filtro es código de producción de RF-012 y su test es T096, en la Fase 6, así que introducirlo acá sería implementar antes del rojo y violaría el Principio I. Lo agrega T105b, después de T096
+- [ ] T042 [P] Crear la base de tests de la capa web en `tests/Stock.Tests/Web/WebTestBase.cs` usando `WebApplicationFactory<Stock.Web.Program>` con la API simulada (R-10). Todavía **sin** sesión simulada: en esta fase la app web no exige autenticación. El fixture de sesión lo agrega T105a, en paralelo exacto con lo que T100 hace del lado de la API
 
 **Punto de control**: esquema listo, migrable y con sus reglas verificadas por un ciclo rojo→verde real. Las historias pueden comenzar.
 
@@ -133,12 +140,14 @@ el primer momento, sin haber demostrado nada.
 
 - [ ] T043 [P] [US1] Test unitario de las 6 combinaciones contra el Conjunto de Datos de Referencia — 15 cantidades asertadas y 9 exclusiones verificadas como ausencia de fila — en `tests/Stock.Tests/Unit/PedidoCalculatorTests.cs`
 - [ ] T044 [US1] Agregar a `tests/Stock.Tests/Unit/PedidoCalculatorTests.cs` el caso de que la cantidad a pedir nunca es negativa cuando el stock supera el nivel (mismo archivo que T043, no paralelizable)
-- [ ] T045 [P] [US1] Test de contrato de `GET /api/consultas/generar-pedido`: parámetros de reposición obligatorios, 400 ante `modoPedido` inválido, y **ausencia de parámetros de rango** en el endpoint, en `tests/Stock.Tests/Integration/GenerarPedidoContractTests.cs` (RF-026a)
+- [ ] T045 [P] [US1] Test de contrato de `GET /api/consultas/generar-pedido` en `tests/Stock.Tests/Integration/GenerarPedidoContractTests.cs`: omitir `soloBajoMinimo` o `modoPedido` devuelve 400 sin aplicar ningún valor por defecto, un `modoPedido` inválido devuelve 400, y el endpoint **no acepta parámetros de rango** (RF-026a, RF-026b)
 - [ ] T046 [P] [US1] Test de integración de que un artículo sin movimientos aparece con stock 0 y cantidad a pedir igual a su stock mínimo, en `tests/Stock.Tests/Integration/GenerarPedidoTests.cs` (V-7)
 - [ ] T047 [US1] Agregar a `tests/Stock.Tests/Integration/GenerarPedidoTests.cs` el caso de que con `soloBajoMinimo=false` se listan todos los artículos incluidos los de cantidad 0
-- [ ] T048 [US1] Agregar a `tests/Stock.Tests/Integration/GenerarPedidoTests.cs` el caso del resultado vacío con mensaje informativo y sin error
+- [ ] T048 [US1] Agregar a `tests/Stock.Tests/Integration/GenerarPedidoTests.cs` el caso del resultado vacío: la respuesta trae cero filas, sin error, y la vista muestra el texto exacto de RF-032
+- [ ] T048a [US1] Agregar a `tests/Stock.Tests/Integration/GenerarPedidoTests.cs` los casos del tope y el orden que RF-027 exige a **ambas** consultas y que hasta ahora sólo se verificaban en Stock Actual: sobre más de 10.000 artículos, dos corridas devuelven el mismo conjunto ordenado por Código con `truncado=true`, y el recorte se aplica **después** de filtrar y ordenar (RF-027, RF-027b, RF-027c)
+- [ ] T048b [US1] Agregar a `tests/Stock.Tests/Integration/GenerarPedidoTests.cs` el caso del filtro por descripción insensible a mayúsculas y acentos en Generar Pedido, y que un filtro vacío no acota el resultado (RF-027a)
 - [ ] T049 [P] [US1] Test de integración de que el `.xlsx` exportado replica filas, orden y recorte de la respuesta JSON, **y que un resultado vacío exporta sólo los encabezados**, en `tests/Stock.Tests/Integration/ExportacionExcelTests.cs` (V-10, RF-031)
-- [ ] T050 [P] [US1] Test de la vista de Generar Pedido en `tests/Stock.Tests/Web/GenerarPedidoControllerTests.cs`: envío de los dos parámetros, render del aviso de recorte, mensaje de resultado vacío y retransmisión del Excel
+- [ ] T050 [P] [US1] Test de la vista de Generar Pedido en `tests/Stock.Tests/Web/GenerarPedidoControllerTests.cs`: envío de los dos parámetros, render del aviso de recorte con el texto exacto de RF-032a, mensaje de resultado vacío con el texto exacto de RF-032 y retransmisión del Excel
 
 ### Implementación de la Historia 1
 
@@ -149,7 +158,7 @@ el primer momento, sin haber demostrado nada.
 - [ ] T055 [US1] Implementar `GET /api/consultas/generar-pedido` y `GET /api/consultas/generar-pedido/excel` en `src/Stock.Api/Controllers/ConsultasController.cs` según [contracts/openapi.yaml](./contracts/openapi.yaml)
 - [ ] T056 [P] [US1] Crear el `GenerarPedidoViewModel` en `src/Stock.Web/Models/GenerarPedidoViewModel.cs`
 - [ ] T057 [US1] Implementar `GenerarPedidoController` en `src/Stock.Web/Controllers/GenerarPedidoController.cs` consumiendo la API y retransmitiendo el Excel
-- [ ] T058 [US1] Crear la vista de Generar Pedido en `src/Stock.Web/Views/GenerarPedido/Index.cshtml` con los dos parámetros de reposición, el filtro opcional, el botón de exportar, el aviso de recorte y el mensaje de resultado vacío (RF-032)
+- [ ] T058 [US1] Crear la vista de Generar Pedido en `src/Stock.Web/Views/GenerarPedido/Index.cshtml` con los dos parámetros de reposición, el filtro opcional, el botón de exportar, y los dos mensajes informativos con el **texto literal** que fijan RF-032 y RF-032a, tomados de un archivo de recursos compartido para que vista y test no puedan divergir
 
 **Punto de control**: US1 funciona de punta a punta sobre datos sembrados. Es el MVP demostrable.
 
@@ -163,7 +172,7 @@ el primer momento, sin haber demostrado nada.
 
 ### Tests de la Historia 2 ⚠️ ESCRIBIR PRIMERO, DEBEN FALLAR
 
-- [ ] T059 [P] [US2] Tests unitarios del validador de movimiento: cantidad no entera, ≤ 0, > 1.000.000, **Precio Unitario negativo o > 9.999.999,99**, **Precio Total > 999.999.999.999,99**, fecha futura y tipo inválido, en `tests/Stock.Tests/Unit/MovimientoValidatorTests.cs` (RF-020b, RF-020d, RF-023, RF-023a)
+- [ ] T059 [P] [US2] Tests unitarios del validador de movimiento: cantidad ≤ 0, cantidad > 1.000.000, **Precio Unitario negativo o > 9.999.999,99**, **Precio Total > 999.999.999.999,99**, fecha futura y tipo inválido, en `tests/Stock.Tests/Unit/MovimientoValidatorTests.cs`. **Sin caso de "cantidad no entera"**: el validador recibe la cantidad ya tipada como `int`, así que un no entero no puede alcanzarlo y el caso sería vacuo. Ese rechazo se verifica en T070a, a nivel de contrato (RF-020b, RF-020d, RF-023, RF-023a, RF-023c)
 - [ ] T060 [US2] Agregar a `tests/Stock.Tests/Unit/MovimientoValidatorTests.cs` el caso de regresión de RF-023b: un precio unitario deliberadamente distinto del Precio de Costo y del Precio de Venta del artículo **se acepta**
 - [ ] T061 [P] [US2] Tests del invariante de stock en `tests/Stock.Tests/Integration/MovimientoInvarianteTests.cs`: venta que dejaría el stock por debajo de 0 rechazada con 422 sin grabar nada, y baja de una compra ya consumida por ventas posteriores rechazada con 422 (V-2, RF-024a)
 - [ ] T062 [P] [US2] Tests de modificación en `tests/Stock.Tests/Integration/MovimientoModificacionTests.cs`: una modificación **exitosa** de cantidades recalcula correctamente el Stock Actual, y una modificación que dejaría el saldo negativo se rechaza con 422 (RF-022, RF-024a)
@@ -174,7 +183,9 @@ el primer momento, sin haber demostrado nada.
 - [ ] T067 [US2] Agregar a `tests/Stock.Tests/Integration/ConsultaStockActualTests.cs` los casos del rango de códigos: extremos inclusive, extremos vacíos y rango invertido con resultado vacío sin error (V-9)
 - [ ] T068 [US2] Agregar a `tests/Stock.Tests/Integration/ConsultaStockActualTests.cs` el caso de la collation del Código: dos códigos que difieren sólo en mayúsculas caen dentro del mismo rango, y dos que difieren en acento no (RF-025a)
 - [ ] T069 [US2] Agregar a `tests/Stock.Tests/Integration/ConsultaStockActualTests.cs` el caso del filtro por descripción insensible a mayúsculas y acentos (V-8, RF-027a)
+- [ ] T069a [P] [US2] Test de la exportación de la **Consulta de Stock Actual** en `tests/Stock.Tests/Integration/ExportacionStockActualExcelTests.cs`: el `.xlsx` de `GET /api/consultas/stock-actual/excel` replica filas, orden y recorte de la respuesta JSON con el mismo rango y filtro, y un resultado vacío exporta sólo los encabezados. RF-031 exige la réplica exacta en **ambas** exportaciones y hasta ahora sólo se verificaba la de Generar Pedido (RF-031)
 - [ ] T070 [P] [US2] Test de contrato del CRUD de `/api/movimientos` en `tests/Stock.Tests/Integration/MovimientosContractTests.cs`, incluido el recorrido completo alta → lectura → modificación → baja
+- [ ] T070a [US2] Agregar a `tests/Stock.Tests/Integration/MovimientosContractTests.cs` el rechazo del no entero en el borde: un cuerpo JSON con `"cantidad": 1.5` devuelve **400 `application/problem+json`** identificando el campo, sin grabar nada y sin llegar al validador de dominio. Se asierta el cuerpo del problema, no sólo el código, para distinguirlo del 400 genérico del framework (RF-018a)
 - [ ] T071 [P] [US2] Tests de la capa web de movimientos y consulta de stock en `tests/Stock.Tests/Web/MovimientosControllerTests.cs`: alta con varias líneas de detalle y propagación del error 422 a la vista
 
 ### Implementación de la Historia 2
@@ -188,7 +199,7 @@ el primer momento, sin haber demostrado nada.
 - [ ] T078 [P] [US2] Crear los ViewModels de movimiento y de consulta de stock en `src/Stock.Web/Models/MovimientoViewModel.cs` y `src/Stock.Web/Models/StockActualViewModel.cs`
 - [ ] T079 [US2] Implementar `MovimientosController` en `src/Stock.Web/Controllers/MovimientosController.cs` con alta, baja y modificación de encabezado y detalle
 - [ ] T080 [US2] Crear las vistas de movimientos en `src/Stock.Web/Views/Movimientos/` (Index, Create, Edit, Delete) con carga de líneas de detalle
-- [ ] T081 [US2] Implementar `StockActualController` y la vista `src/Stock.Web/Views/StockActual/Index.cshtml` con rango, filtro, exportación, aviso de recorte y **mensaje informativo de resultado vacío sin error** (RF-032)
+- [ ] T081 [US2] Implementar `StockActualController` y la vista `src/Stock.Web/Views/StockActual/Index.cshtml` con rango, filtro, exportación y los dos mensajes informativos —recorte y resultado vacío— con el **texto literal** de RF-032a y RF-032, reutilizando el mismo archivo de recursos que T058 para que ambas pantallas digan exactamente lo mismo
 
 **Punto de control**: US1 y US2 funcionan de forma independiente. El Stock Actual ya proviene de movimientos reales.
 
@@ -202,10 +213,11 @@ el primer momento, sin haber demostrado nada.
 
 ### Tests de la Historia 3 ⚠️ ESCRIBIR PRIMERO, DEBEN FALLAR
 
-- [ ] T082 [P] [US3] Tests unitarios del validador de artículo (código vacío, valores negativos, parámetro no entero, incumplimiento de Mínimo ≤ Punto de Pedido ≤ Ideal) en `tests/Stock.Tests/Unit/ArticuloValidatorTests.cs`
+- [ ] T082 [P] [US3] Tests unitarios del validador de artículo (código vacío, valores negativos, incumplimiento de Mínimo ≤ Punto de Pedido ≤ Ideal) en `tests/Stock.Tests/Unit/ArticuloValidatorTests.cs`. **Sin caso de "parámetro no entero"**, por el mismo motivo que T059: los tres parámetros llegan tipados como `int`. Ese rechazo se verifica en T085a (RF-018, RF-019)
 - [ ] T083 [P] [US3] Tests de la API de artículos en `tests/Stock.Tests/Integration/ArticulosTests.cs`: precio de venta calculado, código duplicado rechazado con 409 —incluido el duplicado que difiere sólo en mayúsculas—, y baja de artículo con movimientos rechazada con 409 conservando el histórico (RF-014a, RF-016, RF-017, RF-017a)
 - [ ] T084 [US3] Agregar a `tests/Stock.Tests/Integration/ArticulosTests.cs` el caso de que modificar los parámetros de reposición se refleja en la siguiente ejecución de Generar Pedido (RF-033)
 - [ ] T085 [P] [US3] Test de contrato del CRUD de `/api/articulos` en `tests/Stock.Tests/Integration/ArticulosContractTests.cs`, incluido el recorrido completo alta → lectura → modificación → baja (RF-013, RF-014, RF-015)
+- [ ] T085a [US3] Agregar a `tests/Stock.Tests/Integration/ArticulosContractTests.cs` el rechazo del no entero en el borde: un cuerpo con `"stockMinimo": 2.5` devuelve **400 `application/problem+json`** identificando el campo, sin grabar (RF-018a)
 - [ ] T086 [P] [US3] Tests de la capa web del ABM de artículos en `tests/Stock.Tests/Web/ArticulosControllerTests.cs`: precio de venta como sólo lectura y propagación del 409 a la vista
 
 ### Implementación de la Historia 3
@@ -237,14 +249,17 @@ el primer momento, sin haber demostrado nada.
 ### Implementación de la Historia 4
 
 - [ ] T097 [P] [US4] Implementar `PasswordHasher` con PBKDF2-HMAC-SHA256, 210.000 iteraciones, salt aleatorio de 16 bytes y comparación en tiempo fijo, en `src/Stock.Api/Security/PasswordHasher.cs` (R-03)
-- [ ] T098 [P] [US4] Implementar `JwtTokenService` en `src/Stock.Api/Security/JwtTokenService.cs`: HS256, vigencia 8 horas, `ClockSkew` en cero y claims `sub`, `name`, `role` (R-04)
+- [ ] T098 [P] [US4] Implementar `JwtTokenService` en `src/Stock.Api/Security/JwtTokenService.cs`: HS256, vigencia 8 horas, `ClockSkew` en cero y claims `sub`, `name`, `role` (Descripción del perfil, **sólo para mostrar**) y `es_admin` (derivado de `Perfil.EsAdministrador`, única base de la autorización) (R-04, RF-003a)
 - [ ] T099 [US4] Implementar `POST /api/auth/login` en `src/Stock.Api/Controllers/AuthController.cs` devolviendo el mismo mensaje ante usuario inexistente y contraseña incorrecta
 - [ ] T100 [US4] Agregar el fixture de tests autenticados en `tests/Stock.Tests/Integration/IntegrationTestBase.cs`: obtiene un token del cliente de la factory y lo adjunta a las llamadas
 - [ ] T101 [US4] Registrar la autenticación JWT en `src/Stock.Api/Program.cs` y aplicar `[Authorize]` a todos los controladores excepto `AuthController`
 - [ ] T102 [US4] Adaptar los tests de integración de US1, US2 y US3 al fixture autenticado de T100, y confirmar que vuelven a verde tras T101
-- [ ] T103 [US4] Agregar la siembra del usuario `admin` con perfil administrador en `src/Stock.Api/Data/Seed/DbSeeder.cs`, tomando la contraseña de `SEED_ADMIN_PASSWORD`
+- [ ] T103 [US4] Agregar la siembra del usuario `admin` en `src/Stock.Api/Data/Seed/DbSeeder.cs`, asignándole el perfil que tiene `EsAdministrador = true` —localizado por la marca, no por la Descripción— y tomando la contraseña de `SEED_ADMIN_PASSWORD`, sin valor por defecto embebido
 - [ ] T104 [US4] Implementar el `DelegatingHandler` que adjunta `Authorization: Bearer` y maneja el 401 cerrando sesión, en `src/Stock.Web/Services/BearerTokenHandler.cs`, y registrarlo en el `HttpClient` tipado
 - [ ] T105 [US4] Implementar el login del front con cookie `HttpOnly` que guarda el JWT como claim protegido, en `src/Stock.Web/Controllers/CuentaController.cs` y `src/Stock.Web/Views/Cuenta/Login.cshtml`
+- [ ] T105a [US4] Agregar el fixture de sesión simulada a `tests/Stock.Tests/Web/WebTestBase.cs`: emite la cookie de autenticación con el JWT de prueba ya adentro, para que un test de capa web pueda elegir explícitamente correr con sesión o sin ella (contraparte web de T100)
+- [ ] T105b [US4] Registrar el **filtro de autorización global** en `src/Stock.Web/Program.cs`, de modo que ninguna vista distinta del login se renderice sin sesión (RF-012). Es la implementación que T096 dejó en rojo, y **rompe deliberadamente** los tests de capa web de US1–US3, igual que T101 rompe los de integración
+- [ ] T105c [US4] Adaptar los tests de capa web de US1, US2 y US3 (`GenerarPedidoControllerTests`, `MovimientosControllerTests`, `ArticulosControllerTests`) al fixture con sesión de T105a, y confirmar que vuelven a verde tras T105b (contraparte web de T102)
 
 **Punto de control**: el sistema exige autenticación en todas las pantallas salvo el login, y toda la suite está en verde.
 
@@ -258,23 +273,25 @@ el primer momento, sin haber demostrado nada.
 
 ### Tests de la Historia 5 ⚠️ ESCRIBIR PRIMERO, DEBEN FALLAR
 
-- [ ] T106 [P] [US5] Test unitario de la política de contraseña de mínimo 8 caracteres alfanuméricos, en `tests/Stock.Tests/Unit/PasswordPolicyTests.cs` (RF-009)
+- [ ] T106 [P] [US5] Tests unitarios de la política de contraseña en `tests/Stock.Tests/Unit/PasswordPolicyTests.cs`: se rechazan las de menos de 8 caracteres, las que no tienen ninguna letra y las que no tienen ningún dígito; se **aceptan** las de 8 o más que mezclan letras y dígitos, incluidas las que además contienen símbolos (RF-009)
 - [ ] T107 [P] [US5] Tests de usuarios en `tests/Stock.Tests/Integration/UsuariosTests.cs`: 403 para perfil no administrador, 400 sin grabar ante contraseña corta, ninguna respuesta incluye `Hash` ni `Salt`, y **una modificación sin contraseña no re-deriva el hash** (RF-006, RF-007, RF-009, RF-010)
-- [ ] T108 [P] [US5] Tests de perfiles en `tests/Stock.Tests/Integration/PerfilesTests.cs`: baja de perfil con usuarios asignados rechazada con 409, y modificación de la Descripción persistida (RF-002a, RF-003)
-- [ ] T109 [P] [US5] Test de contrato del CRUD de `/api/usuarios` y `/api/perfiles` en `tests/Stock.Tests/Integration/SeguridadContractTests.cs`, incluido el recorrido completo alta → lectura → modificación → baja de ambos recursos (RF-001, RF-002, RF-004, RF-005)
-- [ ] T110 [P] [US5] Tests de la capa web de los ABM de seguridad en `tests/Stock.Tests/Web/SeguridadControllerTests.cs`: la entrada de menú no se muestra a perfiles no administradores
+- [ ] T107a [P] [US5] Test del último administrador en `tests/Stock.Tests/Integration/UltimoAdministradorTests.cs`: con un solo usuario administrador, su baja se rechaza con 409 sin grabar, y la modificación que le cambia el perfil se rechaza con 409; con dos administradores, ambas operaciones sobre uno de ellos se aceptan (RF-005a, CE-007a)
+- [ ] T108 [P] [US5] Tests de perfiles en `tests/Stock.Tests/Integration/PerfilesTests.cs`: baja de perfil con usuarios asignados rechazada con 409, modificación de la Descripción persistida, y baja del perfil administrador rechazada con 409 aun sin usuarios asignados (RF-002a, RF-002b, RF-003)
+- [ ] T108a [P] [US5] Test de que el privilegio sigue a la marca y no al texto, en `tests/Stock.Tests/Integration/IdentidadAdministradorTests.cs`: renombrar el perfil administrador a "operador" **conserva** el acceso de sus usuarios a `/api/usuarios`, renombrar el perfil "vendedor" a "administrador" **no** se lo concede, y ningún DTO de alta o modificación de perfil permite fijar `EsAdministrador` —el campo enviado en el cuerpo se ignora y no se persiste— (RF-003a, RF-010, CE-007a)
+- [ ] T109 [P] [US5] Test de contrato del CRUD de `/api/usuarios` y `/api/perfiles` en `tests/Stock.Tests/Integration/SeguridadContractTests.cs`, incluido el recorrido completo alta → lectura → modificación → baja de ambos recursos, y el **403 para perfil no administrador en los dos recursos**, no sólo en usuarios (RF-001, RF-002, RF-004, RF-005, RF-010, RF-010a)
+- [ ] T110 [P] [US5] Tests de la capa web de los ABM de seguridad en `tests/Stock.Tests/Web/SeguridadControllerTests.cs`: las entradas de menú de **usuarios y perfiles** no se muestran a perfiles sin el claim `es_admin`, y un perfil cuya Descripción es "administrador" pero sin el claim tampoco las ve (RF-010, RF-010a)
 
 ### Implementación de la Historia 5
 
-- [ ] T111 [P] [US5] Implementar `PasswordPolicy` en `src/Stock.Api/Domain/Validation/PasswordPolicy.cs` (RF-009)
-- [ ] T112 [P] [US5] Definir la política de autorización `SoloAdministrador` en `src/Stock.Api/Security/AuthorizationPolicies.cs`, devolviendo 403 al usuario autenticado sin el perfil (RF-010)
-- [ ] T113 [US5] Implementar `PerfilService` en `src/Stock.Api/Services/PerfilService.cs` con la verificación previa de baja restringida
-- [ ] T114 [US5] Implementar `UsuarioService` en `src/Stock.Api/Services/UsuarioService.cs`, re-derivando el hash sólo cuando la modificación incluye contraseña
-- [ ] T115 [US5] Implementar el CRUD de `/api/perfiles` en `src/Stock.Api/Controllers/PerfilesController.cs` con la política `SoloAdministrador`
+- [ ] T111 [P] [US5] Implementar `PasswordPolicy` en `src/Stock.Api/Domain/Validation/PasswordPolicy.cs`: longitud mínima 8, al menos una letra y al menos un dígito, sin prohibir caracteres no alfanuméricos (RF-009)
+- [ ] T112 [P] [US5] Definir la política de autorización `SoloAdministrador` en `src/Stock.Api/Security/AuthorizationPolicies.cs` exigiendo el claim **`es_admin = "true"`**, devolviendo 403 al usuario autenticado que no lo tenga. La política **no** debe mirar el claim `role` ni ninguna cadena de Descripción (RF-010, RF-003a)
+- [ ] T113 [US5] Implementar `PerfilService` en `src/Stock.Api/Services/PerfilService.cs` con la verificación previa de baja restringida (RF-002a), el rechazo de la baja del perfil administrador (RF-002b) y DTOs de alta/modificación que **no incluyan** `EsAdministrador`, de modo que la marca sea inalcanzable desde la API (RF-003a)
+- [ ] T114 [US5] Implementar `UsuarioService` en `src/Stock.Api/Services/UsuarioService.cs`, re-derivando el hash sólo cuando la modificación incluye contraseña, y rechazando la baja o el cambio de perfil del último usuario administrador. La verificación del conteo de administradores restantes va **dentro de la misma transacción** que la escritura, para que dos bajas concurrentes no puedan eliminar a los dos últimos (RF-005a)
+- [ ] T115 [US5] Implementar el CRUD de `/api/perfiles` en `src/Stock.Api/Controllers/PerfilesController.cs` con la política `SoloAdministrador` (RF-010a, que extiende la restricción al ABM de perfiles porque es el que gobierna quién es administrador)
 - [ ] T116 [US5] Implementar el CRUD de `/api/usuarios` en `src/Stock.Api/Controllers/UsuariosController.cs` con la política `SoloAdministrador` y DTOs que nunca expongan `Hash` ni `Salt`
 - [ ] T117 [P] [US5] Crear los ViewModels de usuario y perfil en `src/Stock.Web/Models/UsuarioViewModel.cs` y `src/Stock.Web/Models/PerfilViewModel.cs`
 - [ ] T118 [US5] Implementar `UsuariosController` y `PerfilesController` en `src/Stock.Web/Controllers/`
-- [ ] T119 [US5] Crear las vistas de los ABM en `src/Stock.Web/Views/Usuarios/` y `src/Stock.Web/Views/Perfiles/`, ocultando la entrada de menú a los perfiles no administradores
+- [ ] T119 [US5] Crear las vistas de los ABM en `src/Stock.Web/Views/Usuarios/` y `src/Stock.Web/Views/Perfiles/`, ocultando la entrada de menú según el claim `es_admin` de la cookie de sesión —nunca comparando la Descripción del perfil contra la cadena "administrador"—, y sin exponer ningún control que permita editar la marca de administrador
 
 **Punto de control**: las cinco historias funcionan de forma independiente.
 
@@ -295,13 +312,14 @@ el primer momento, sin haber demostrado nada.
 
 - [ ] T124 Implementar `ErrorLogDbContext` con **conexión independiente** y **sin migraciones propias** en `src/Stock.Api/Data/ErrorLogDbContext.cs`, mapeando la tabla ya creada por la migración de la Fase 2 (R-08)
 - [ ] T125 Implementar el middleware global de excepciones en `src/Stock.Api/Middleware/ExceptionLoggingMiddleware.cs`: registra sólo errores de ejecución no controlados y devuelve un mensaje genérico sin detalle interno (RF-028)
-- [ ] T126 Implementar el manejador global de excepciones de la capa MVC en `src/Stock.Web/Middleware/ExceptionLoggingMiddleware.cs`, escribiendo en `ErrorLog` con su propia conexión. Es la **única** excepción a la regla de que `Stock.Web` no accede a la base: sólo diagnóstico, sólo escritura, ninguna entidad de negocio (RF-028, CE-008; desviación registrada en Complexity Tracking de [plan.md](./plan.md))
+- [ ] T125a Crear en `src/Stock.Web/Data/` la entidad `ErrorLog` y el `ErrorLogDbContext` **propios de `Stock.Web`**, mapeados a la tabla `dbo.ErrorLog` ya creada por la migración de la Fase 2, con conexión independiente y **sin migraciones propias**. Es imprescindible y no era deducible de ninguna tarea previa: `Stock.Web` no referencia a `Stock.Api` (T005 sólo agrega esa referencia desde el proyecto de tests) y el `ErrorLogDbContext` de T124 vive en `src/Stock.Api/Data/`, de modo que sin esta tarea T126 no compila. La duplicación de la clase es deliberada: es preferible a que la capa web tome una dependencia sobre el ensamblado de la API (R-08)
+- [ ] T126 Implementar el manejador global de excepciones de la capa MVC en `src/Stock.Web/Middleware/ExceptionLoggingMiddleware.cs`, escribiendo en `ErrorLog` con el contexto propio de T125a. Es la **única** excepción a la regla de que `Stock.Web` no accede a la base: sólo diagnóstico, sólo escritura, ninguna entidad de negocio (RF-028, CE-008; desviación registrada en Complexity Tracking de [plan.md](./plan.md))
 - [ ] T127 [P] Agregar el layout y la navegación comunes en `src/Stock.Web/Views/Shared/_Layout.cshtml` con acceso a las dos consultas y los tres ABM
-- [ ] T128 [P] Documentar en `README.md` el procedimiento de carga del inventario de apertura mediante Movimientos de Compra, que RF-029 satisface sin código adicional
+- [ ] T128 [P] Documentar en `README.md` el procedimiento de carga del inventario de apertura mediante Movimientos de Compra, que RF-029 satisface sin código adicional, y remitir al escenario V-14 de [quickstart.md](./quickstart.md), que lo verifica de punta a punta. Con eso RF-029 deja de ser el único requisito sostenido sólo por documentación
 - [ ] T129 [P] Verificar que `AGENTS.md` describe con exactitud los comandos reales del proyecto ya construido (compose, migraciones, tests)
 - [ ] T130 Ejecutar `dotnet test StockModulo.sln` y confirmar que la suite por defecto pasa y que **no** incluyó la categoría `Volumen`, gracias al `.runsettings` de T015
 - [ ] T131 Ejecutar `dotnet test StockModulo.sln --filter TestCategory=Volumen` y confirmar el presupuesto de CE-002 y CE-004; si falla, revisar la decisión R-01 de [research.md](./research.md) antes de denormalizar nada
-- [ ] T132 Recorrer los 12 escenarios de [quickstart.md](./quickstart.md) y confirmar la cobertura de los 8 criterios de éxito
+- [ ] T132 Recorrer los 14 escenarios de [quickstart.md](./quickstart.md) y confirmar la cobertura de los 9 criterios de éxito
 
 ---
 
@@ -316,7 +334,7 @@ el primer momento, sin haber demostrado nada.
 
 ### Dentro de la Fase 2 — el ciclo rojo→verde es estrictamente secuencial entre bloques
 
-- Bloque 1 (T016–T019) antes que Bloque 2: los tests deben existir y no compilar
+- Bloque 1 (T016–T019a) antes que Bloque 2: los tests deben existir y no compilar
 - Bloque 2 (T020–T029) antes que T030: el andamiaje los hace compilar y fallar. **T027 es imprescindible acá**: sin el registro del `DbContext`, la factory de T028 no arranca y el rojo sería por error de configuración, no por la restricción ausente
 - **T030 es una puerta**: si algún test pasa acá, está mal escrito
 - Bloque 3 (T031–T037) antes que T038: las configuraciones los ponen en verde
@@ -326,8 +344,11 @@ el primer momento, sin haber demostrado nada.
 - **US1 (P1)**: arranca apenas termina la Fase 2. Se valida sobre datos sembrados, sin necesidad del ABM de artículos ni de la carga de movimientos por pantalla.
 - **US2 (P2)**: arranca apenas termina la Fase 2. Reutiliza el `ExcelExporter` de T054; si se implementara antes que US1, esa tarea se mueve a US2.
 - **US3 (P3)**: independiente. Enriquece a US1 al permitir mantener los parámetros de reposición desde la UI.
-- **US4 (P4)**: independiente y transversal. T101 aplica `[Authorize]` sobre los endpoints de US1–US3 y **rompe deliberadamente** sus tests de integración; T100 y T102 son las tareas que introducen el fixture autenticado y los reparan. No es un efecto colateral no planificado: es trabajo con tarea asignada.
-- **US5 (P5)**: depende de US4 para la política `SoloAdministrador` y para el hasher de contraseñas (T097).
+- **US4 (P4)**: independiente y transversal. El endurecimiento del acceso rompe deliberadamente tests ya escritos, **en las dos capas y con tarea asignada en ambas**:
+  - *API*: T101 aplica `[Authorize]` sobre los endpoints de US1–US3 y rompe sus tests de integración; T100 introduce el fixture autenticado y T102 los repara.
+  - *Web*: T105b registra el filtro de autorización global y rompe los tests de capa web de US1–US3; T105a introduce el fixture de sesión y T105c los repara.
+  Ninguno de los dos es un efecto colateral no planificado.
+- **US5 (P5)**: depende de US4 para la política `SoloAdministrador`, para el claim `es_admin` que la sostiene (T098) y para el hasher de contraseñas (T097).
 
 **Única dependencia real entre historias**: US5 → US4. Las demás son independientes.
 
@@ -339,8 +360,8 @@ el primer momento, sin haber demostrado nada.
 
 ### Oportunidades de paralelismo
 
-- Fase 1: T003, T004, T011, T013, T014 en paralelo. T006–T008 y T012 modifican archivos creados por tareas anteriores, por eso no llevan `[P]`
-- Fase 2: los cuatro tests de esquema (T016–T019) en paralelo; luego las seis entidades (T020–T025) en paralelo; luego las cinco configuraciones (T031–T035) en paralelo
+- Fase 1: T003, T004, T011, T013, T013b, T014 en paralelo. T006–T008 y T012 modifican archivos creados por tareas anteriores, y T013a depende de T010 y T013, por eso no llevan `[P]`
+- Fase 2: los cinco tests de esquema (T016–T019a) en paralelo; luego las seis entidades (T020–T025) en paralelo; luego las cinco configuraciones (T031–T035) en paralelo
 - Dentro de cada historia, los tests marcados `[P]` escriben en archivos distintos y corren en paralelo
 - Con equipo: tras la Fase 2, US1, US2, US3 y US4 pueden avanzar en paralelo; US5 espera a US4
 
@@ -388,9 +409,13 @@ Tarea: "T056 — GenerarPedidoViewModel en src/Stock.Web/Models/GenerarPedidoVie
 ### Nota sobre el orden de la autenticación
 
 US4 es P4 a propósito: el spec justifica que el valor de negocio central (US1–US3) se demuestre
-antes de endurecer el acceso. La contrapartida —que aplicar `[Authorize]` rompa los tests ya
-escritos— está cubierta por T100 y T102, que forman parte del alcance de US4 y no se descubren
-sobre la marcha.
+antes de endurecer el acceso. La contrapartida —que endurecer el acceso rompa los tests ya
+escritos— está cubierta en las dos capas por T100/T102 (API) y T105a/T105c (web), que forman parte
+del alcance de US4 y no se descubren sobre la marcha.
+
+Corolario del Principio I: **ni el `[Authorize]` de la API ni el filtro global de la web pueden
+adelantarse a la Fase 6**, porque sus tests (T094 y T096) viven ahí. Por eso T041 deja
+`src/Stock.Web/Program.cs` sin filtro de autorización, aunque el archivo se cree en la Fase 2.
 
 ---
 

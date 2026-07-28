@@ -51,7 +51,7 @@ paths:
   /api/perfiles:
     get:
       tags: [Perfiles]
-      summary: Listar perfiles de seguridad
+      summary: Listar perfiles de seguridad (sólo administrador, RF-010a)
       responses:
         '200':
           description: OK
@@ -61,9 +61,10 @@ paths:
                 type: array
                 items: { $ref: '#/components/schemas/Perfil' }
         '401': { $ref: '#/components/responses/NoAutorizado' }
+        '403': { $ref: '#/components/responses/PerfilInsuficiente' }
     post:
       tags: [Perfiles]
-      summary: Alta de perfil (RF-001)
+      summary: Alta de perfil (RF-001, sólo administrador por RF-010a)
       requestBody:
         required: true
         content:
@@ -108,7 +109,10 @@ paths:
         '403': { $ref: '#/components/responses/PerfilInsuficiente' }
         '404': { $ref: '#/components/responses/NoEncontrado' }
         '409':
-          description: El perfil tiene usuarios asignados; baja restringida. (RF-002a)
+          description: |
+            Baja restringida. Dos causas posibles: el perfil tiene usuarios
+            asignados (RF-002a), o es el perfil administrador, que no puede
+            eliminarse aunque no tenga usuarios (RF-002b).
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/ProblemDetails' }
@@ -142,7 +146,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Usuario' }
         '400':
-          description: Contraseña de menos de 8 caracteres alfanuméricos, u otro dato inválido. (RF-009)
+          description: Contraseña que incumple la política de RF-009, u otro dato inválido. (RF-009)
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/ProblemDetails' }
@@ -174,6 +178,13 @@ paths:
         '401': { $ref: '#/components/responses/NoAutorizado' }
         '403': { $ref: '#/components/responses/PerfilInsuficiente' }
         '404': { $ref: '#/components/responses/NoEncontrado' }
+        '409':
+          description: |
+            El usuario es el último con perfil administrador y el cambio le
+            quitaría ese perfil; el sistema no puede quedar sin administrador. (RF-005a)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetails' }
     delete:
       tags: [Usuarios]
       summary: Baja de usuario (RF-005)
@@ -182,6 +193,13 @@ paths:
         '401': { $ref: '#/components/responses/NoAutorizado' }
         '403': { $ref: '#/components/responses/PerfilInsuficiente' }
         '404': { $ref: '#/components/responses/NoEncontrado' }
+        '409':
+          description: |
+            El usuario es el último con perfil administrador; baja restringida
+            para que el sistema no quede sin administrador. (RF-005a)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetails' }
 
   /api/articulos:
     get:
@@ -296,7 +314,10 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Movimiento' }
         '400':
-          description: Cantidad no entera, ≤ 0 o > 1.000.000; fecha futura; tipo inválido. (RF-020b, RF-020d, RF-023, RF-023a)
+          description: |
+            Cantidad no entera (rechazada al deserializar, RF-018a); cantidad ≤ 0
+            o > 1.000.000; Precio Unitario negativo o fuera de tope; fecha futura;
+            tipo inválido. (RF-018a, RF-020b, RF-020d, RF-023, RF-023a, RF-023c)
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/ProblemDetails' }
@@ -411,7 +432,9 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ResultadoGenerarPedido' }
         '400':
-          description: Falta un parámetro de reposición o `modoPedido` no es un valor admitido.
+          description: |
+            Falta un parámetro de reposición o `modoPedido` no es un valor admitido.
+            Ambos son obligatorios y sin valor por defecto. (RF-026b)
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/ProblemDetails' }
@@ -499,10 +522,22 @@ components:
       properties:
         perfilId:    { type: integer }
         descripcion: { type: string }
+        esAdministrador:
+          type: boolean
+          readOnly: true
+          description: |
+            Marca inmutable que identifica al perfil administrador. Se establece
+            en la siembra inicial y es la única base de las decisiones de
+            autorización; la descripción es un rótulo editable sin efecto sobre
+            los privilegios. (RF-003a)
 
     PerfilRequest:
       type: object
       required: [descripcion]
+      additionalProperties: false
+      description: |
+        No admite esAdministrador: la marca no es alcanzable desde la API. Un
+        cuerpo que la incluya se rechaza por additionalProperties. (RF-003a)
       properties:
         descripcion: { type: string, maxLength: 100 }
 
@@ -526,7 +561,8 @@ components:
           type: string
           format: password
           description: |
-            Mínimo 8 caracteres alfanuméricos. Obligatorio en el alta; en la
+            Mínimo 8 caracteres, con al menos una letra y un dígito; los símbolos
+            están permitidos. Obligatorio en el alta; en la
             modificación, si se omite se conserva el hash existente. (RF-009)
 
     Articulo:

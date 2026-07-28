@@ -127,9 +127,11 @@ acceso de P4, pero no aporta valor de negocio directo por sí mismo.
 
 1. **Dado** un perfil sin usuarios asignados o un usuario, **Cuando** se da de alta/modifica/baja, **Entonces** el cambio queda persistido y recuperable (o deja de existir) por su identificador.
 2. **Dado** el alta de un usuario, **Cuando** se graba, **Entonces** la contraseña se almacena como hash con salt aleatorio propio (dos usuarios con la misma contraseña tienen hashes distintos) y nunca en texto plano ni en formato reversible.
-3. **Dado** una contraseña de menos de 8 caracteres alfanuméricos, **Cuando** se intenta grabar, **Entonces** el sistema muestra un error y no graba el registro.
+3. **Dado** una contraseña que incumple la política de RF-009 —menos de 8 caracteres, o sin ninguna letra, o sin ningún dígito—, **Cuando** se intenta grabar, **Entonces** el sistema muestra un error y no graba el registro; y **Dado** una contraseña de 8 o más caracteres que mezcla letras, dígitos y símbolos, **Entonces** se acepta.
 4. **Dado** un usuario cuyo perfil no es administrador, **Cuando** intenta acceder a la carga de usuarios, **Entonces** el sistema deniega el acceso.
 5. **Dado** un perfil con al menos un usuario asignado, **Cuando** se intenta darlo de baja, **Entonces** el sistema muestra un error y el perfil sigue existiendo.
+6. **Dado** el perfil administrador, **Cuando** se modifica su Descripción a cualquier otro texto, **Entonces** sus usuarios conservan el acceso a la carga de usuarios; y **Cuando** se cambia la Descripción de otro perfil a "administrador", **Entonces** sus usuarios siguen recibiendo acceso denegado.
+7. **Dado** el único usuario con perfil administrador, **Cuando** se intenta darlo de baja o cambiarle el perfil, **Entonces** el sistema muestra un error y el usuario conserva su perfil administrador.
 
 ---
 
@@ -146,10 +148,12 @@ acceso de P4, pero no aporta valor de negocio directo por sí mismo.
 - **Ventas concurrentes del mismo artículo**: si dos usuarios graban a la vez ventas que juntas superan el stock disponible, solo una se graba; la otra se rechaza con el error de stock insuficiente y el saldo nunca queda negativo.
 - **Baja/modificación de movimientos**: modificar o eliminar un movimiento recalcula el Stock Actual derivado; la validación de stock no negativo aplica a toda operación, incluida la baja o modificación de una compra ya consumida por ventas posteriores, que se rechaza en lugar de dejar el stock en negativo.
 - **Fallo parcial en movimiento multilínea**: si cualquier línea falla su validación, no se aplica ninguna; el movimiento es todo-o-nada.
-- **Cantidad no entera o ≤ 0**: cualquier línea con cantidad que no sea entero positivo invalida todo el movimiento.
-- **Cantidad o precio fuera de rango**: una línea cuya Cantidad supere 1.000.000 de unidades, cuyo Precio Unitario supere 9.999.999,99 o cuyo Precio Total supere 999.999.999.999,99, invalida todo el movimiento.
+- **Cantidad no entera o ≤ 0**: cualquier línea con cantidad que no sea entero positivo invalida todo el movimiento. Los dos casos se rechazan en capas distintas y con códigos distintos: el **no entero** en el borde de la solicitud con 400 (RF-018a), el **entero ≤ 0** como regla de negocio (RF-023).
+- **Cantidad o precio fuera de rango**: una línea cuya Cantidad supere 1.000.000 de unidades, cuyo Precio Unitario sea negativo o supere 9.999.999,99, o cuyo Precio Total supere 999.999.999.999,99, invalida todo el movimiento.
 - **Código duplicado**: no se permite dar de alta ni modificar un artículo hacia un Código ya usado.
 - **Baja de entidad referenciada**: no se permite eliminar un artículo con movimientos asociados ni un perfil con usuarios asignados; la operación se rechaza con un error y el registro permanece intacto.
+- **Renombre del perfil administrador**: cambiar la Descripción del perfil administrador es una operación válida y no altera los privilegios de sus usuarios; tampoco los otorga a un perfil renombrado a "administrador". El privilegio sigue a la marca interna, no al texto.
+- **Sistema sin administrador**: no existe secuencia de operaciones del ABM de seguridad que deje al sistema sin un usuario administrador. Se rechazan la baja del perfil administrador, la baja del último usuario administrador y el cambio de perfil de ese último usuario.
 - **Error de ejecución**: cualquier error en tiempo de ejecución queda registrado en la bitácora de errores sin exponer detalles internos al usuario.
 
 ## Requisitos *(obligatorio)*
@@ -161,26 +165,35 @@ Un sufijo alfabético (por ejemplo **RF-024a**) identifica un requisito derivado
 completa al RF base con el mismo número, incorporado a partir de una clarificación o de una
 auditoría de calidad. El sufijo preserva la trazabilidad hacia el PRD del requisito padre.
 
+Los requisitos se agrupan por **tema**, no por número: dentro de la lista, RF-029 aparece junto a los
+movimientos que lo satisfacen y RF-028 al final con el registro de errores. El identificador es una
+etiqueta estable de trazabilidad, **no una posición**; buscar un RF por su número no debe hacerse por
+orden de aparición.
+
 ### Requisitos Funcionales
 
 **Perfiles de seguridad**
 - **RF-001** (RF-01): El sistema DEBE permitir dar de alta un perfil de seguridad con Identificador (autonumérico) y Descripción.
 - **RF-002** (RF-02): El sistema DEBE permitir dar de baja un perfil de seguridad existente.
 - **RF-002a** (RF-02): El sistema DEBE rechazar la baja de un perfil de seguridad que tenga usuarios asignados, mostrando un error y sin eliminar el registro (baja restringida; no hay baja lógica ni eliminación en cascada).
+- **RF-002b** (RF-02): El sistema DEBE rechazar la baja del perfil administrador, aunque no tenga usuarios asignados y cualquiera sea su Descripción vigente, para que nunca deje de existir el perfil que habilita RF-004 a RF-006.
 - **RF-003** (RF-03): El sistema DEBE permitir modificar la Descripción de un perfil existente.
+- **RF-003a** (RF-03/RF-10): El sistema DEBE identificar al perfil administrador por una **marca interna inmutable**, independiente de su Descripción. La Descripción es un rótulo editable por RF-003 y NO DEBE ser base de ninguna decisión de autorización: renombrar un perfil no otorga ni quita privilegios, y renombrar el perfil administrador no deja al sistema sin administrador. La marca se establece exclusivamente en la siembra inicial y no es editable desde el ABM de perfiles, por lo que existe siempre exactamente un perfil administrador.
 
 **Usuarios**
 - **RF-004** (RF-04): El sistema DEBE permitir dar de alta un usuario con identificador, nombre de usuario, nombre completo y credenciales almacenadas de forma no reversible.
 - **RF-005** (RF-05): El sistema DEBE permitir dar de baja un usuario existente.
+- **RF-005a** (RF-05/RF-06): El sistema DEBE rechazar la baja de un usuario, y la modificación que le cambie el perfil, cuando sea el **último usuario con perfil administrador**, mostrando un error y sin grabar. El sistema nunca puede quedar sin al menos un usuario capaz de operar RF-004 a RF-006.
 - **RF-006** (RF-06): El sistema DEBE permitir modificar los datos de un usuario existente.
 
 **Seguridad de credenciales**
 - **RF-007** (RF-07): El sistema DEBE almacenar la contraseña de cada usuario de forma no recuperable ni desencriptable en texto plano.
 - **RF-008** (RF-08): El sistema DEBE generar la representación protegida de la contraseña con un valor aleatorio (salt) propio de cada usuario, de modo que dos usuarios con la misma contraseña tengan representaciones distintas.
-- **RF-009** (RF-09): El sistema DEBE rechazar el alta o modificación de un usuario cuya contraseña tenga menos de 8 caracteres alfanuméricos, mostrando un error y sin grabar.
+- **RF-009** (RF-09): El sistema DEBE rechazar el alta o modificación de un usuario cuya contraseña no cumpla la política mínima, mostrando un error y sin grabar. La política es: **longitud mínima de 8 caracteres, con al menos una letra y al menos un dígito**. Los caracteres no alfanuméricos están **permitidos** y cuentan para la longitud; lo que se exige es la presencia de ambas clases, no la ausencia de las demás. No hay longitud máxima ni exigencia de mayúsculas o símbolos.
 
 **Acceso**
-- **RF-010** (RF-10): El sistema DEBE restringir la carga de usuarios (RF-004 a RF-006) exclusivamente al perfil administrador, respondiendo **prohibido (403)** a un usuario autenticado cuyo perfil no sea administrador. Se distingue del no autorizado (401) de RF-012, que corresponde a la ausencia de sesión válida.
+- **RF-010** (RF-10): El sistema DEBE restringir la carga de usuarios (RF-004 a RF-006) exclusivamente al perfil administrador, respondiendo **prohibido (403)** a un usuario autenticado cuyo perfil no sea administrador. La condición de administrador se evalúa contra la marca inmutable de RF-003a, nunca contra la Descripción del perfil. Se distingue del no autorizado (401) de RF-012, que corresponde a la ausencia de sesión válida.
+- **RF-010a** (RF-10): El sistema DEBE extender la restricción de RF-010 al ABM de perfiles de seguridad (RF-001 a RF-003), respondiendo **prohibido (403)** al usuario autenticado que no sea administrador. Fundamento: el perfil determina quién accede a la carga de usuarios, de modo que dejar el ABM de perfiles abierto permitiría a cualquier usuario alterar indirectamente el control de acceso de RF-010. Ambos ABM de seguridad quedan restringidos; el resto de las funcionalidades sigue disponible para todo usuario autenticado.
 - **RF-011** (RF-11): El sistema DEBE ofrecer una pantalla de inicio de sesión que valide usuario y contraseña contra la representación protegida (usando el salt del usuario), mostrando "Usuario o contraseña incorrectos" ante credenciales inválidas.
 - **RF-012** (RF-12): El sistema DEBE exigir una sesión autenticada válida para toda funcionalidad salvo el inicio de sesión, y rechazar (no autorizado) toda solicitud a una funcionalidad protegida sin sesión válida.
 
@@ -194,6 +207,7 @@ auditoría de calidad. El sufijo preserva la trazabilidad hacia el PRD del requi
 - **RF-017** (RF-17): El sistema DEBE rechazar el alta o modificación de un artículo con Código duplicado (el Código es único).
 - **RF-017a** (RF-17): El sistema DEBE evaluar la unicidad del Código con la misma regla de comparación que su ordenamiento (RF-025a): **insensible a mayúsculas y sensible a acentos**. En consecuencia, `A-001` y `a-001` son el mismo Código y el segundo se rechaza como duplicado, mientras que dos códigos que difieren en un acento son distintos.
 - **RF-018** (RF-18): El sistema DEBE rechazar el alta o modificación si Precio de Costo, Margen, Stock Mínimo, Punto de Pedido o Stock Ideal es negativo, o si alguno de los tres parámetros de reposición incumple el tipo entero que fija RF-013a.
+- **RF-018a** (RF-18/RF-23): El sistema DEBE rechazar todo valor **no entero** enviado a un campo entero —los tres parámetros de reposición de RF-018 y la Cantidad de línea de RF-023— en el **borde de la solicitud**, al deserializar el pedido, respondiendo un error de validación (400) que identifique el campo ofensor, sin llegar a las reglas de negocio ni grabar. El rechazo del no entero es, por lo tanto, un requisito del contrato de la API y no una regla que los validadores de dominio puedan observar: éstos reciben valores ya tipados como enteros. Un valor entero fuera de rango sí es un rechazo de negocio y sigue las reglas de RF-018, RF-019 y RF-023a.
 - **RF-019** (RF-19): El sistema DEBE rechazar el alta o modificación que no cumpla Stock Mínimo ≤ Punto de Pedido ≤ Stock Ideal.
 
 **Movimientos**
@@ -206,6 +220,7 @@ auditoría de calidad. El sufijo preserva la trazabilidad hacia el PRD del requi
 - **RF-022** (RF-22): El sistema DEBE permitir modificar un Movimiento existente (encabezado y detalle).
 - **RF-023** (RF-23): El sistema DEBE rechazar el alta o modificación de un Movimiento con alguna línea cuya Cantidad no sea un número entero mayor que 0.
 - **RF-023a** (RF-23): El sistema DEBE rechazar el alta o modificación de un Movimiento con alguna línea que exceda alguno de estos límites, mostrando un error y sin grabar: Cantidad mayor a 1.000.000 de unidades; Precio Unitario mayor a 9.999.999,99; Precio Total (Cantidad × Precio Unitario) mayor a 999.999.999.999,99.
+- **RF-023c** (RF-20/RF-23): El sistema DEBE rechazar el alta o modificación de un Movimiento con alguna línea cuyo Precio Unitario sea **negativo**, mostrando un error y sin grabar. Fija el extremo inferior que RF-023a dejaba abierto: el precio de una operación real nunca es menor que cero, aunque sí puede ser cero (por ejemplo, una bonificación). La regla es independiente de RF-023b: acota el signo, no vincula el precio al catálogo.
 - **RF-023b** (RF-20): El sistema NO DEBE validar el Precio Unitario de una línea contra el Precio de Costo ni el Precio de Venta del artículo: el precio se informa por movimiento y refleja la operación real, sin vínculo con el catálogo.
 - **RF-024** (RF-24): El sistema DEBE rechazar el alta o modificación de un Movimiento de venta que dejaría el Stock Actual de algún artículo por debajo de 0, mostrando un error y sin grabar. *(Refinado por RF-024a, que generaliza el invariante a toda operación; se conserva por trazabilidad al RF-24 del PRD y no requiere implementación ni test propios además de los de RF-024a.)*
 - **RF-024a** (RF-21/RF-22/RF-24): El sistema DEBE mantener el invariante Stock Actual ≥ 0 en TODA operación sobre Movimientos, incluidas la baja y la modificación de una compra: si el resultado dejaría el Stock Actual de algún artículo por debajo de 0, la operación se rechaza por completo mostrando un error y sin grabar ningún cambio.
@@ -223,13 +238,15 @@ auditoría de calidad. El sufijo preserva la trazabilidad hacia el PRD del requi
   - "solo bajo mínimo" = Sí: se listan solo los artículos con Stock Actual < Stock Mínimo, con Cantidad a Pedir = MAX(0, Nivel − Stock Actual). En esta rama el MAX(0, …) es redundante pero se aplica por uniformidad: dado que RF-019 garantiza Stock Mínimo ≤ Nivel y el filtro garantiza Stock Actual < Stock Mínimo, la diferencia es siempre mayor que 0.
   - Donde Nivel es Stock Mínimo, Punto de Pedido o Stock Ideal según el Modo de Pedido.
 - **RF-026a** (RF-26): El sistema NO DEBE ofrecer parámetro de rango de artículos en "Generar Pedido"; sus únicos parámetros de reposición son los dos de RF-026, más el filtro opcional de acotación de RF-027a.
+- **RF-026b** (RF-26): El sistema DEBE exigir **ambos** parámetros de reposición de RF-026 en cada ejecución de "Generar Pedido", sin valores por defecto implícitos: una solicitud que omita "solo bajo mínimo" o "Modo de Pedido" se rechaza con un error de validación. Fundamento: los dos parámetros determinan por completo el resultado (RF-026) y un valor por defecto silencioso produciría una lista de pedido que el usuario no pidió y no puede distinguir de la que sí. El filtro por descripción de RF-027a, en cambio, es opcional por definición.
 - **RF-027** (RF-25/RF-26): El sistema DEBE acotar el volumen de ambas consultas a un máximo de 10.000 filas y ofrecer un filtro opcional por descripción.
 - **RF-027a** (RF-25/RF-26): El sistema DEBE aplicar el filtro opcional por descripción como coincidencia parcial (el texto buscado aparece en cualquier posición de la Descripción), insensible a mayúsculas/minúsculas y a acentos. Un filtro vacío no acota el resultado.
-- **RF-027b** (RF-25/RF-26): El sistema DEBE ordenar el resultado de ambas consultas por Código ascendente (orden alfabético como texto), aplicar el rango y el filtro primero, y recién sobre el conjunto ya filtrado y ordenado aplicar el tope de 10.000 filas, de modo que el resultado sea determinista y reproducible.
+- **RF-027b** (RF-25/RF-26): El sistema DEBE ordenar el resultado de ambas consultas por Código ascendente, **con la regla de comparación que fija RF-025a** (insensible a mayúsculas, sensible a acentos; RF-025a es la fuente autoritativa y esta regla no la redefine), aplicar el rango y el filtro primero, y recién sobre el conjunto ya filtrado y ordenado aplicar el tope de 10.000 filas, de modo que el resultado sea determinista y reproducible.
 - **RF-027c** (RF-25/RF-26): El sistema DEBE informar explícitamente al usuario cuando el resultado fue recortado por alcanzar el tope de 10.000 filas, indicando que debe acotar la consulta con el filtro por descripción.
 - **RF-030** (RF-25/RF-26): El sistema DEBE incluir en el resultado de ambas consultas a los artículos del catálogo sin movimientos registrados, con Stock Actual 0, aplicándoles las mismas reglas de pedido que al resto.
 - **RF-031** (RF-25/RF-26): El sistema DEBE producir una exportación a Excel que replique exactamente las filas, el orden y el recorte mostrados en pantalla al momento de exportar. Un resultado vacío exporta un archivo con solo los encabezados de columna.
-- **RF-032** (RF-25/RF-26): El sistema DEBE mostrar una grilla vacía con un mensaje informativo, sin error, cuando la combinación de parámetros no arroja ninguna fila.
+- **RF-032** (RF-25/RF-26): El sistema DEBE mostrar una grilla vacía con un mensaje informativo, sin error, cuando la combinación de parámetros no arroja ninguna fila. El texto es exactamente **"No hay artículos que cumplan los criterios de la consulta."**, se muestra en el lugar de la grilla y no se acompaña de ningún indicador de error. Fijarlo acá lo hace verificable: el test asierta esa cadena, no la mera ausencia de filas.
+- **RF-032a** (RF-25/RF-26): El sistema DEBE mostrar, cuando el resultado se recortó por RF-027c, el texto exacto **"Se muestran las primeras 10.000 filas. Acote la búsqueda con el filtro por descripción."**, visible junto a la grilla y distinguible del mensaje de resultado vacío de RF-032. Ambos mensajes son informativos, no errores.
 - **RF-033** (RF-26): El sistema DEBE calcular "Generar Pedido" siempre contra el estado vigente del catálogo y de los movimientos al momento de ejecutar la consulta. El resultado no se persiste ni se versiona: modificar los parámetros de reposición de un artículo se refleja en la siguiente ejecución.
 
 **Registro de errores**
@@ -237,11 +254,11 @@ auditoría de calidad. El sufijo preserva la trazabilidad hacia el PRD del requi
 
 ### Entidades Clave *(incluir si la funcionalidad involucra datos)*
 
-- **Perfil de seguridad**: rol de acceso; identificador y descripción (ej.: administrador, administrativo, vendedor). No puede eliminarse mientras tenga usuarios asignados.
-- **Usuario**: persona que opera el sistema; identificador, nombre de usuario, nombre completo, credenciales protegidas (representación no reversible + salt propio) y perfil asociado.
+- **Perfil de seguridad**: rol de acceso; identificador, descripción (ej.: administrador, administrativo, vendedor) y una **marca de administrador** interna, establecida en la siembra inicial, no editable y no expuesta al ABM, que es la única base de las decisiones de autorización (RF-003a). La descripción es un rótulo editable. No puede eliminarse mientras tenga usuarios asignados, y el perfil marcado como administrador no puede eliminarse nunca.
+- **Usuario**: persona que opera el sistema; identificador, nombre de usuario, nombre completo, credenciales protegidas (representación no reversible + salt propio) y perfil asociado. El último usuario cuyo perfil tenga la marca de administrador no puede darse de baja ni cambiar de perfil.
 - **Artículo**: ítem del catálogo; Código único (texto; base del orden alfabético y del rango de las consultas), descripción, precio de costo, margen, precio de venta calculado, y los tres parámetros de reposición enteros no negativos (stock mínimo, punto de pedido, stock ideal). Su **Stock Actual** es derivado (saldo de movimientos), no un campo propio, siempre entero y nunca negativo. No puede eliminarse mientras tenga movimientos asociados.
 - **Movimiento (encabezado)**: compra o venta; tipo (conjunto cerrado: Compra | Venta), número y fecha (no futura). El Número es autogenerado por el sistema desde una única secuencia global (compras y ventas comparten numeración), es único en todo el sistema, no editable y no reutilizable.
-- **Detalle de movimiento**: líneas del movimiento; artículo (Código), cantidad (entero > 0), precio unitario informado por operación y precio total calculado como cantidad × precio unitario.
+- **Detalle de movimiento**: líneas del movimiento; artículo referenciado —el **Código** es su identidad de negocio, la que ve y carga el usuario; la referencia física interna es el identificador del artículo—, cantidad (entero > 0), precio unitario informado por operación (no negativo) y precio total calculado como cantidad × precio unitario.
 - **Registro de error**: bitácora de fallos; identificador, fecha/hora, nombre de máquina, mensaje y detalle de la excepción.
 
 **Terminología canónica**: se usa **Stock Actual** en todo el documento para designar el saldo de
@@ -259,6 +276,7 @@ movimientos de un artículo. "Cantidad" se emplea únicamente como rótulo de la
 - **CE-005**: El Stock Actual de un artículo nunca queda por debajo de 0: ninguna alta, baja ni modificación de movimiento (venta o compra) puede grabarse si el resultado violara ese invariante.
 - **CE-006**: Ninguna contraseña puede recuperarse en texto plano; dos usuarios con la misma contraseña presentan representaciones protegidas distintas en el 100% de los casos.
 - **CE-007**: Ninguna funcionalidad distinta del inicio de sesión es accesible sin una sesión autenticada válida.
+- **CE-007a**: Ninguna operación disponible en el ABM de seguridad puede dejar al sistema sin un usuario administrador ni transferir el privilegio de administrador a otro perfil. Se verifica intentando renombrar perfiles en ambos sentidos, eliminar el perfil administrador y eliminar o reasignar al último usuario administrador.
 - **CE-008**: El 100% de los errores de ejecución quedan registrados en la bitácora de errores.
 
 ### Conjunto de Datos de Referencia (para CE-003)
@@ -293,5 +311,5 @@ Nótese que A-004 queda excluido con "solo bajo mínimo" = Sí porque 0 < 0 es f
 - El "Nivel" de reposición en "Generar Pedido" corresponde a Stock Mínimo, Punto de Pedido o Stock Ideal según el Modo de Pedido seleccionado.
 - El Punto de Pedido es exclusivamente un nivel de reposición seleccionable en "Generar Pedido". No dispara alertas, avisos ni notificaciones propias: cualquier señalización automática al cruzarlo está fuera de alcance.
 - Las reglas de stock y pedido se calculan íntegramente con datos propios del sistema y no dependen de ningún servicio externo, por lo que no se requieren requisitos de modo de fallo, reintento ni degradación frente a terceros.
-- Fuera de alcance (según PRD): carga de proveedores, manejo de múltiples proveedores por artículo, generación de órdenes de compra y permisos por perfil para pantallas distintas de la carga de usuarios (todo usuario autenticado accede al resto de las funcionalidades; la única restricción por perfil es la carga de usuarios).
-- Existe un usuario administrador inicial para poder operar el alta de usuarios y perfiles.
+- Fuera de alcance (según PRD): carga de proveedores, manejo de múltiples proveedores por artículo, generación de órdenes de compra y permisos por perfil para las pantallas de negocio. Todo usuario autenticado accede a artículos, movimientos y ambas consultas; la restricción por perfil alcanza **exclusivamente a los dos ABM de seguridad** —usuarios (RF-010) y perfiles (RF-010a)—, porque son los que gobiernan el propio control de acceso.
+- Existe un usuario administrador inicial, sembrado junto con el perfil administrador y su marca interna, para poder operar el alta de usuarios y perfiles. RF-002b y RF-005a garantizan que ese punto de entrada no pueda perderse por operación del propio ABM.

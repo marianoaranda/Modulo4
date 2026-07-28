@@ -12,8 +12,10 @@ que combina dos parámetros de reposición ("solo bajo mínimo" y "Modo de Pedid
 `MAX(0, Nivel − Stock Actual)` por artículo.
 
 **Enfoque técnico**: solución .NET 8 de dos aplicaciones —`Stock.Api` (Web API REST con JWT, dueña
-de toda la regla de negocio) y `Stock.Web` (ASP.NET MVC, consumidor sin acceso a base)— sobre SQL
-Server 2017 vía EF Core Migrations.
+de toda la regla de negocio) y `Stock.Web` (ASP.NET MVC, consumidor sin acceso a base **salvo una
+excepción única**: la escritura de la bitácora de errores por su propia conexión, sólo diagnóstico y
+sin ninguna entidad de negocio, registrada en Complexity Tracking)— sobre SQL Server 2017 vía EF
+Core Migrations.
 
 Tres decisiones sostienen el diseño:
 
@@ -54,7 +56,7 @@ El detalle y las alternativas descartadas están en [research.md](./research.md)
 | **I. Desarrollo Test-First** | ✅ PASA | El plan ordena el trabajo en rojo→verde→refactor. La lógica de pedido es una función pura testeable sin infraestructura, y el spec aporta el Conjunto de Datos de Referencia (matriz de 6 × 4 = 24 celdas: 15 cantidades asertadas y 9 exclusiones): los tests de CE-003 pueden escribirse antes que el código. |
 | **II. Aislamiento de la Lógica de IA** | ✅ PASA (por vacuidad) | Esta funcionalidad **no contiene lógica de IA**. La "inferencia" de qué pedir es una fórmula determinista (`MAX(0, Nivel − Stock Actual)`), no una llamada a un modelo. No hay prompts, ni invocación de modelos, ni parseo de respuestas que aislar. Si en el futuro se agregara sugerencia predictiva de reposición, este principio obligaría a un módulo dedicado. |
 | **III. Fidelidad a la Fuente de Verdad** | ✅ PASA | Toda cantidad a pedir es trazable a movimientos reales. El Stock Actual no se estima ni se infiere: es el saldo de compras y ventas registradas. No hay caso de "baja confianza" que derivar a un humano porque no hay estimación. |
-| **IV. Gestión Segura de Secretos** | ✅ PASA | Cadena de conexión, clave de firma JWT y contraseña del administrador inicial se inyectan por variable de entorno. Las contraseñas se derivan con PBKDF2 + salt aleatorio de 16 bytes por usuario. |
+| **IV. Gestión Segura de Secretos** | ✅ PASA | Cadena de conexión, clave de firma JWT y contraseña del administrador inicial se inyectan por variable de entorno, resueltas por Docker Compose desde un `.env` **excluido del repositorio**; lo versionado es `.env.example`, con placeholders. Los archivos de configuración quedan con los valores vacíos y la API falla al arrancar si alguno no está definido, en vez de recurrir a un valor por defecto. Las contraseñas de usuario se derivan con PBKDF2 + salt aleatorio de 16 bytes por usuario. |
 
 **Restricciones adicionales de la constitución**:
 
@@ -73,7 +75,7 @@ El detalle y las alternativas descartadas están en [research.md](./research.md)
 | **I. Test-First** | ✅ PASA | R-10 fija la estrategia: `Unit` para la calculadora de pedido, validadores y hashing; `Integration` contra SQL Server real para lo que depende del motor (bloqueos, collations, agregación). Se rechazó InMemory/SQLite justamente porque daría verde falso en los tres puntos de mayor riesgo. El principio se aplica **sin excepción por capa**: (a) el esquema codifica reglas de negocio (`CHECK` de orden de stocks, columnas calculadas, índice único), por lo que `tasks.md` ordena los tests de esas restricciones **antes** que las configuraciones que las implementan; (b) la capa `Stock.Web` tiene su propia carpeta de tests con `WebApplicationFactory`, incluido el `BearerTokenHandler`, que contiene lógica real de manejo del 401. |
 | **II. Aislamiento de IA** | ✅ PASA (por vacuidad) | El diseño no introdujo ninguna dependencia de IA. Sin cambios. |
 | **III. Fuente de verdad** | ✅ **REFORZADO** | `vw_StockActual` es el único lugar donde se calcula el saldo, consumido tanto por las consultas como por la validación del invariante. `PrecioVenta` y `PrecioTotal` son columnas calculadas por el motor: no pueden divergir de sus insumos. Se rechazó explícitamente persistir el stock (R-01), que habría creado una segunda fuente de verdad. |
-| **IV. Secretos** | ✅ PASA | R-03 y R-04 detallan la derivación de contraseñas y la firma del token; ningún secreto queda en el código ni en el repositorio. |
+| **IV. Secretos** | ✅ PASA | R-03 y R-04 detallan la derivación de contraseñas y la firma del token. Que ningún secreto quede en el repositorio no es una afirmación declarativa: tiene mecanismo asignado (`.env` ignorado + `.env.example` con placeholders) y arranque que falla ante una variable ausente. R-04 además desacopla la autorización de la Descripción editable del perfil mediante el claim `es_admin`, para que renombrar un perfil no pueda otorgar ni quitar privilegios. |
 
 **Veredicto post-diseño**: sin violaciones. La sección Complexity Tracking queda vacía.
 
@@ -87,7 +89,7 @@ specs/001-modulo-stock-pedidos/
 ├── spec.md              # Especificación
 ├── research.md          # Fase 0: decisiones técnicas (R-01 … R-10)
 ├── data-model.md        # Fase 1: entidades, vista, protocolo de escritura
-├── quickstart.md        # Fase 1: puesta en marcha y 12 escenarios de validación
+├── quickstart.md        # Fase 1: puesta en marcha y 14 escenarios de validación
 ├── contracts/           # Fase 1: contrato REST
 │   ├── README.md
 │   └── openapi.yaml
@@ -123,11 +125,13 @@ src/
 │   ├── Middleware/                # Manejador global de excepciones → ErrorLog
 │   └── Controllers/               # Auth, Perfiles, Usuarios, Articulos, Movimientos, Consultas
 │
-└── Stock.Web/                     # ASP.NET MVC. Consume la API; sin acceso a base de datos.
-    ├── Controllers/
-    ├── Views/                     # ABMs + Consulta de Stock Actual + Generar Pedido
+└── Stock.Web/                     # ASP.NET MVC. Consume la API; sin acceso a base de negocio.
+    ├── Controllers/               # Incluye CuentaController (login con cookie HttpOnly)
+    ├── Views/                     # ABMs + Consulta de Stock Actual + Generar Pedido + Cuenta/Login
     ├── Models/                    # ViewModels
-    └── Services/                  # HttpClient tipado + DelegatingHandler que adjunta el Bearer
+    ├── Services/                  # HttpClient tipado + DelegatingHandler que adjunta el Bearer
+    ├── Middleware/                # ExceptionLoggingMiddleware → ErrorLog (única excepción, ver abajo)
+    └── Data/                      # ErrorLog + ErrorLogDbContext propios, sólo escritura de bitácora
 
 tests/
 └── Stock.Tests/                   # NUnit. Categorías: Unit, Integration, Volumen
@@ -142,21 +146,26 @@ tests/
     │   ├── EsquemaArticuloTests       # CHECK, columna calculada, índice único
     │   ├── EsquemaMovimientoTests     # CHECK, cascada, NO ACTION
     │   ├── EsquemaErrorLogTests       # La tabla existe tras migrar
+    │   ├── EsquemaPerfilTests         # Índice único filtrado del perfil administrador
     │   ├── VistaStockActualTests      # Saldo y artículos sin movimientos
     │   ├── GenerarPedidoTests / ConsultaStockActualTests
     │   ├── MovimientoInvarianteTests / MovimientoModificacionTests
     │   ├── MovimientoAtomicidadTests / MovimientoNumeracionTests
     │   ├── ConcurrenciaTests          # CE-004: 5 ventas simultáneas
     │   ├── ArticulosTests / UsuariosTests / PerfilesTests / SeguridadTests
+    │   ├── UltimoAdministradorTests   # No se puede quedar sin administrador (RF-005a)
+    │   ├── IdentidadAdministradorTests # El privilegio sigue a la marca, no a la Descripción
     │   ├── *ContractTests             # GenerarPedido, Movimientos, Articulos, Auth, Seguridad
-    │   ├── ExportacionExcelTests
+    │   ├── ExportacionExcelTests      # Ambas consultas: Generar Pedido y Stock Actual
     │   ├── ErrorLogTests              # La bitácora sobrevive al rollback
-    │   └── RendimientoTests           # Categoría Volumen, excluida por .runsettings
+    │   ├── RendimientoTests           # Categoría Volumen, excluida por .runsettings
+    │   └── RendimientoConcurrenteTests # Categoría Volumen: p95 con 5 clientes (CE-004)
     └── Web/                       # Capa MVC con WebApplicationFactory
-        ├── WebTestBase
+        ├── WebTestBase                # Con y sin sesión simulada
         ├── GenerarPedidoControllerTests / MovimientosControllerTests
         ├── ArticulosControllerTests / SeguridadControllerTests
-        └── BearerTokenHandlerTests    # Adjunta el Bearer y maneja el 401
+        ├── ErrorLogWebTests           # Excepción no controlada del MVC → ErrorLog
+        └── BearerTokenHandlerTests    # Adjunta el Bearer, maneja el 401 y exige sesión
 ```
 
 **Decisión de estructura**: dos proyectos de aplicación más uno de tests, exactamente los que nombra
@@ -179,7 +188,7 @@ El detalle por tarea lo produce `/speckit-tasks`.
 6. **P4 — Autenticación**: PBKDF2 con salt por usuario, emisión de JWT, protección de endpoints.
 7. **P5 — ABM de Usuarios y Perfiles**: política de administrador y bajas restringidas.
 8. **Transversales**: bitácora de errores, exportación a Excel, front MVC.
-9. **Validación**: los 12 escenarios de [quickstart.md](./quickstart.md), incluido el de volumen que cierra CE-002.
+9. **Validación**: los 14 escenarios de [quickstart.md](./quickstart.md), incluido el de volumen que cierra CE-002.
 
 ## Complexity Tracking
 

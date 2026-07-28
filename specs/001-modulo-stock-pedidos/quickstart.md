@@ -172,6 +172,30 @@ un mensaje genérico, sin detalle interno.
 Verificar además que un rechazo de negocio (`422` por stock insuficiente) **no** genera fila en
 `ErrorLog`: la bitácora es para fallos, no para rechazos esperados.
 
+### V-13 — La identidad del administrador no depende del texto (CE-007a, RF-002b, RF-003a, RF-005a)
+
+1. Renombrar la Descripción del perfil administrador a "operador" → sus usuarios **siguen** accediendo a `/api/usuarios` (`200`).
+2. Renombrar el perfil "vendedor" a "administrador" → sus usuarios siguen recibiendo `403` en `/api/usuarios`.
+3. Enviar `EsAdministrador: true` en el cuerpo de un alta o modificación de perfil → el campo se ignora y en base sigue habiendo **un solo** perfil con la marca.
+4. Intentar dar de baja el perfil administrador, incluso sin usuarios asignados → `409`.
+5. Con un único usuario administrador, intentar darlo de baja y luego cambiarle el perfil → `409` en ambos casos; con dos administradores, ambas operaciones se aceptan.
+
+**Resultado esperado**: ninguna secuencia del ABM de seguridad deja al sistema sin administrador ni
+transfiere el privilegio a otro perfil.
+
+### V-14 — Carga del inventario de apertura (RF-029)
+
+Sobre una base recién migrada y sin movimientos:
+
+1. Verificar que los artículos del catálogo aparecen en ambas consultas con Stock Actual 0.
+2. Cargar un Movimiento de tipo **Compra** con la fecha de apertura y una línea por artículo con su existencia física contada.
+3. Volver a ejecutar la Consulta de Stock Actual.
+
+**Resultado esperado**: el Stock Actual de cada artículo coincide con la existencia cargada, sin
+haber usado ningún campo de "stock inicial". Confirma que RF-029 se satisface por construcción con
+el CRUD de movimientos y que no hace falta código adicional — que es exactamente lo que documenta
+T128.
+
 ---
 
 ## Mapa de cobertura
@@ -185,8 +209,9 @@ Verificar además que un rechazo de negocio (`422` por stock insuficiente) **no*
 | CE-005 | V-2, V-3 |
 | CE-006 | V-11 |
 | CE-007 | V-11 |
+| CE-007a | V-13 |
 | CE-008 | V-12 |
 
-Los escenarios V-6 a V-10 cubren requisitos funcionales sin criterio de éxito propio pero con
+Los escenarios V-6 a V-10 y V-14 cubren requisitos funcionales sin criterio de éxito propio pero con
 comportamiento observable definido (recorte determinista, artículos sin movimientos, filtro, rango
 y exportación).
