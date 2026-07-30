@@ -1,0 +1,59 @@
+services:
+  # SQL Server 2017. Es también el motor que usan los tests de integración (R-10):
+  # de compose se usa sólo la base, las aplicaciones se hospedan in-process.
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2017-latest
+    container_name: stock-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "${SA_PASSWORD}"
+      MSSQL_PID: Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$$SA_PASSWORD\" -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  api:
+    build:
+      context: .
+      dockerfile: src/Stock.Api/Dockerfile
+    container_name: stock-api
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__StockDb: "Server=sqlserver,1433;Database=StockModulo;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True"
+      Jwt__SigningKey: "${JWT_SIGNING_KEY}"
+      # La API migra y siembra la base sola. Sólo en compose: fuera de acá se usa
+      # `dotnet ef database update` (ver AGENTS.md).
+      ApplyMigrationsOnStartup: "true"
+      SEED_ADMIN_PASSWORD: "${SEED_ADMIN_PASSWORD}"
+    ports:
+      - "5279:8080"
+
+  web:
+    build:
+      context: .
+      dockerfile: src/Stock.Web/Dockerfile
+    container_name: stock-web
+    depends_on:
+      - api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      StockApi__BaseUrl: "http://api:8080"
+      # Única conexión a base de la capa web: escritura de la bitácora de errores (R-08).
+      ConnectionStrings__StockDb: "Server=sqlserver,1433;Database=StockModulo;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True"
+    ports:
+      - "5280:8080"
+
+volumes:
+  sqlserver-data:

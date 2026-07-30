@@ -1,0 +1,31 @@
+# Compilación .NET
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+*.dll
+*.pdb
+
+# Archivos de usuario / IDE
+*.user
+*.suo
+*.userprefs
+.vs/
+.vscode/
+.idea/
+
+# Secretos locales — nunca se commitean (Principio IV)
+.env
+*.env.local
+
+# Resultados de pruebas
+TestResults/
+*.trx
+coverage/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp

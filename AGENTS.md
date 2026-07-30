@@ -13,12 +13,18 @@ infiere automáticamente qué artículos hace falta pedir (por stock mínimo, pu
 
 ## Cómo correr
 ```
+# PRIMER PASO: crear el archivo de secretos locales a partir de la plantilla y completar
+# los tres valores (SA_PASSWORD, JWT_SIGNING_KEY, SEED_ADMIN_PASSWORD).
+# `.env` está ignorado por git y NO se commitea; `.env.example` sí, con placeholders.
+cp .env.example .env
+
 # Instalar dependencias
 dotnet restore StockModulo.sln
 
 # Levantar todo (SQL Server + API + Web) con Docker.
 # La API migra y siembra la base sola (flag ApplyMigrationsOnStartup, sólo en compose).
-# Web en http://localhost:5280, API en http://localhost:5279, usuario admin / Admin1234.
+# Web en http://localhost:5280, API en http://localhost:5279.
+# Usuario inicial: admin, con la contraseña definida en SEED_ADMIN_PASSWORD.
 docker compose up -d --build
 
 # Aplicar migraciones de base de datos (necesario sólo fuera de Docker)

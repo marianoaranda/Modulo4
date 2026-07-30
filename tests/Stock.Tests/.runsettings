@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Excluye la categoría Volumen de la corrida por defecto.
+
+  La puerta de calidad de la constitución es `dotnet test StockModulo.sln` a secas. Los tests de
+  volumen siembran 10.000 artículos y 100.000 líneas de detalle y tardan minutos: incluirlos en la
+  puerta haría que cada validación de rutina pague ese costo, con el efecto predecible de que se
+  deje de correr la puerta. Se ejecutan aparte pasando a `dotnet test` el filtro
+  `TestCategory=Volumen` (ver quickstart.md).
+
+  Desviación registrada en Complexity Tracking de specs/001-modulo-stock-pedidos/plan.md.
+-->
+<RunSettings>
+  <RunConfiguration>
+    <TestSessionTimeout>1800000</TestSessionTimeout>
+    <TestCaseFilter>TestCategory!=Volumen</TestCaseFilter>
+  </RunConfiguration>
+</RunSettings>

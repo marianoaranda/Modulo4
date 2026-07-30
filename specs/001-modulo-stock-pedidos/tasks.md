@@ -47,23 +47,23 @@ Según la estructura fijada en [plan.md](./plan.md):
 
 **Propósito**: solución, proyectos y entorno reproducible.
 
-- [ ] T001 Crear la solución `StockModulo.sln` en la raíz del repositorio y las carpetas `src/` y `tests/`
-- [ ] T002 Crear el proyecto Web API `src/Stock.Api/Stock.Api.csproj` sobre `net8.0`
-- [ ] T003 [P] Crear el proyecto ASP.NET MVC `src/Stock.Web/Stock.Web.csproj` sobre `net8.0`
-- [ ] T004 [P] Crear el proyecto de tests NUnit `tests/Stock.Tests/Stock.Tests.csproj` sobre `net8.0`
-- [ ] T005 Agregar los tres proyectos a `StockModulo.sln` y las referencias de `tests/Stock.Tests` hacia `src/Stock.Api` y `src/Stock.Web`
-- [ ] T006 Agregar a `src/Stock.Api/Stock.Api.csproj` los paquetes `Microsoft.EntityFrameworkCore.SqlServer`, `Microsoft.EntityFrameworkCore.Design`, `Microsoft.AspNetCore.Authentication.JwtBearer` y `ClosedXML` (modifica el archivo creado por T002)
-- [ ] T007 Agregar a `tests/Stock.Tests/Stock.Tests.csproj` los paquetes `NUnit`, `NUnit3TestAdapter`, `Microsoft.NET.Test.Sdk` y `Microsoft.AspNetCore.Mvc.Testing` (modifica el archivo creado por T004)
-- [ ] T008 Agregar a `src/Stock.Web/Stock.Web.csproj` el soporte de `HttpClient` tipado (`Microsoft.Extensions.Http`) y `Microsoft.EntityFrameworkCore.SqlServer`, este último **sólo** para escribir la bitácora de errores (modifica el archivo creado por T003)
-- [ ] T009 Declarar `public partial class Program` en su propio namespace en `src/Stock.Api/Program.cs` y `src/Stock.Web/Program.cs`, para que `Stock.Api.Program` y `Stock.Web.Program` no colisionen en el proyecto de tests, que referencia a ambos (R-10)
-- [ ] T010 Crear `docker-compose.yml` en la raíz con SQL Server 2017, `Stock.Api` en el puerto 5279 y `Stock.Web` en el 5280, según [quickstart.md](./quickstart.md). **Ningún valor secreto literal**: la contraseña `SA` de SQL Server, la clave de firma JWT y `SEED_ADMIN_PASSWORD` se referencian como `${SA_PASSWORD}`, `${JWT_SIGNING_KEY}` y `${SEED_ADMIN_PASSWORD}`, que Docker Compose resuelve desde el `.env` de T013a
-- [ ] T011 [P] Crear `src/Stock.Api/Dockerfile` y `src/Stock.Web/Dockerfile`
-- [ ] T012 Configurar la lectura por variable de entorno de la cadena de conexión, la clave de firma JWT y `SEED_ADMIN_PASSWORD` en `src/Stock.Api/appsettings.json` y `src/Stock.Web/appsettings.json`, dejando los valores **vacíos** en el archivo versionado y haciendo que la API falle al arrancar con un mensaje explícito si alguno no está definido, en vez de caer en un valor por defecto (Principio IV)
-- [ ] T013 [P] Crear `.gitignore` en la raíz excluyendo `bin/`, `obj/`, `*.user`, `.env` y `*.env.local`, de modo que ningún archivo de secretos locales pueda commitearse por descuido
-- [ ] T013a Crear `.env.example` en la raíz con las tres claves (`SA_PASSWORD`, `JWT_SIGNING_KEY`, `SEED_ADMIN_PASSWORD`) y **placeholders, no valores reales**, y crear el `.env` local a partir de él con valores generados. `.env.example` se commitea; `.env` queda ignorado por T013 (Principio IV; depende de T010 y T013)
-- [ ] T013b [P] Documentar en [quickstart.md](./quickstart.md) y en `AGENTS.md` que el primer paso de la puesta en marcha es `cp .env.example .env` y completar los tres valores, reemplazando la mención de la credencial fija `admin / Admin1234` de `AGENTS.md` por una referencia a `SEED_ADMIN_PASSWORD`
-- [ ] T014 [P] Definir las categorías `Unit`, `Integration` y `Volumen` en `tests/Stock.Tests/TestCategories.cs`
-- [ ] T015 Crear `tests/Stock.Tests/.runsettings` que excluya la categoría `Volumen`, y referenciarlo desde `tests/Stock.Tests/Stock.Tests.csproj` con `RunSettingsFilePath`, de modo que `dotnet test StockModulo.sln` —la puerta de calidad literal de la constitución— **no** dispare la siembra masiva de CE-002 (desviación registrada en Complexity Tracking de [plan.md](./plan.md))
+- [X] T001 Crear la solución `StockModulo.sln` en la raíz del repositorio y las carpetas `src/` y `tests/`
+- [X] T002 Crear el proyecto Web API `src/Stock.Api/Stock.Api.csproj` sobre `net8.0`
+- [X] T003 [P] Crear el proyecto ASP.NET MVC `src/Stock.Web/Stock.Web.csproj` sobre `net8.0`
+- [X] T004 [P] Crear el proyecto de tests NUnit `tests/Stock.Tests/Stock.Tests.csproj` sobre `net8.0`
+- [X] T005 Agregar los tres proyectos a `StockModulo.sln` y las referencias de `tests/Stock.Tests` hacia `src/Stock.Api` y `src/Stock.Web`
+- [X] T006 Agregar a `src/Stock.Api/Stock.Api.csproj` los paquetes `Microsoft.EntityFrameworkCore.SqlServer`, `Microsoft.EntityFrameworkCore.Design`, `Microsoft.AspNetCore.Authentication.JwtBearer` y `ClosedXML` (modifica el archivo creado por T002)
+- [X] T007 Agregar a `tests/Stock.Tests/Stock.Tests.csproj` los paquetes `NUnit`, `NUnit3TestAdapter`, `Microsoft.NET.Test.Sdk` y `Microsoft.AspNetCore.Mvc.Testing` (modifica el archivo creado por T004)
+- [X] T008 Agregar a `src/Stock.Web/Stock.Web.csproj` el soporte de `HttpClient` tipado (`Microsoft.Extensions.Http`) y `Microsoft.EntityFrameworkCore.SqlServer`, este último **sólo** para escribir la bitácora de errores (modifica el archivo creado por T003)
+- [X] T009 Declarar `public partial class Program` en su propio namespace en `src/Stock.Api/Program.cs` y `src/Stock.Web/Program.cs`, para que `Stock.Api.Program` y `Stock.Web.Program` no colisionen en el proyecto de tests, que referencia a ambos (R-10)
+- [X] T010 Crear `docker-compose.yml` en la raíz con SQL Server 2017, `Stock.Api` en el puerto 5279 y `Stock.Web` en el 5280, según [quickstart.md](./quickstart.md). **Ningún valor secreto literal**: la contraseña `SA` de SQL Server, la clave de firma JWT y `SEED_ADMIN_PASSWORD` se referencian como `${SA_PASSWORD}`, `${JWT_SIGNING_KEY}` y `${SEED_ADMIN_PASSWORD}`, que Docker Compose resuelve desde el `.env` de T013a
+- [X] T011 [P] Crear `src/Stock.Api/Dockerfile` y `src/Stock.Web/Dockerfile`
+- [X] T012 Configurar la lectura por variable de entorno de la cadena de conexión, la clave de firma JWT y `SEED_ADMIN_PASSWORD` en `src/Stock.Api/appsettings.json` y `src/Stock.Web/appsettings.json`, dejando los valores **vacíos** en el archivo versionado y haciendo que la API falle al arrancar con un mensaje explícito si alguno no está definido, en vez de caer en un valor por defecto (Principio IV)
+- [X] T013 [P] Crear `.gitignore` en la raíz excluyendo `bin/`, `obj/`, `*.user`, `.env` y `*.env.local`, de modo que ningún archivo de secretos locales pueda commitearse por descuido
+- [X] T013a Crear `.env.example` en la raíz con las tres claves (`SA_PASSWORD`, `JWT_SIGNING_KEY`, `SEED_ADMIN_PASSWORD`) y **placeholders, no valores reales**, y crear el `.env` local a partir de él con valores generados. `.env.example` se commitea; `.env` queda ignorado por T013 (Principio IV; depende de T010 y T013)
+- [X] T013b [P] Documentar en [quickstart.md](./quickstart.md) y en `AGENTS.md` que el primer paso de la puesta en marcha es `cp .env.example .env` y completar los tres valores, reemplazando la mención de la credencial fija `admin / Admin1234` de `AGENTS.md` por una referencia a `SEED_ADMIN_PASSWORD`
+- [X] T014 [P] Definir las categorías `Unit`, `Integration` y `Volumen` en `tests/Stock.Tests/TestCategories.cs`
+- [X] T015 Crear `tests/Stock.Tests/.runsettings` que excluya la categoría `Volumen`, y referenciarlo desde `tests/Stock.Tests/Stock.Tests.csproj` con `RunSettingsFilePath`, de modo que `dotnet test StockModulo.sln` —la puerta de calidad literal de la constitución— **no** dispare la siembra masiva de CE-002 (desviación registrada en Complexity Tracking de [plan.md](./plan.md))
 
 ---
 
@@ -88,43 +88,43 @@ el primer momento, sin haber demostrado nada.
 
 ### Bloque 1 — Tests del esquema ⚠️ ESCRIBIR PRIMERO. No compilan: ése es el primer rojo
 
-- [ ] T016 [P] Tests de las restricciones de `Articulo` a nivel de base (rechazo de `StockMinimo > PuntoPedido`, de valores negativos y de `Codigo` duplicado —incluida la colisión por diferencia de mayúsculas—, y cálculo de `PrecioVenta`) en `tests/Stock.Tests/Integration/EsquemaArticuloTests.cs` (RF-016, RF-017, RF-017a, RF-018, RF-019)
-- [ ] T017 [P] Tests de las restricciones de `MovimientoDetalle` a nivel de base (rechazo de `Cantidad` ≤ 0 y > 1.000.000, rechazo de `PrecioUnitario` negativo y aceptación de `PrecioUnitario` = 0, cálculo de `PrecioTotal`, borrado en cascada desde el encabezado y `NO ACTION` hacia `Articulo`) en `tests/Stock.Tests/Integration/EsquemaMovimientoTests.cs` (RF-014a, RF-020c, RF-021, RF-023, RF-023a, RF-023c)
-- [ ] T018 [P] Test de que `vw_StockActual` devuelve 0 para artículos sin movimientos y el saldo correcto con compras y ventas, en `tests/Stock.Tests/Integration/VistaStockActualTests.cs` (RF-030)
-- [ ] T019 [P] Test de que la tabla `dbo.ErrorLog` existe y admite inserción tras aplicar las migraciones, en `tests/Stock.Tests/Integration/EsquemaErrorLogTests.cs` (RF-028)
-- [ ] T019a [P] Test de la restricción de unicidad del perfil administrador a nivel de base en `tests/Stock.Tests/Integration/EsquemaPerfilTests.cs`: insertar un segundo `Perfil` con `EsAdministrador = 1` se rechaza por el índice único filtrado, mientras que varios perfiles con `EsAdministrador = 0` conviven sin problema (RF-003a)
+- [X] T016 [P] Tests de las restricciones de `Articulo` a nivel de base (rechazo de `StockMinimo > PuntoPedido`, de valores negativos y de `Codigo` duplicado —incluida la colisión por diferencia de mayúsculas—, y cálculo de `PrecioVenta`) en `tests/Stock.Tests/Integration/EsquemaArticuloTests.cs` (RF-016, RF-017, RF-017a, RF-018, RF-019)
+- [X] T017 [P] Tests de las restricciones de `MovimientoDetalle` a nivel de base (rechazo de `Cantidad` ≤ 0 y > 1.000.000, rechazo de `PrecioUnitario` negativo y aceptación de `PrecioUnitario` = 0, cálculo de `PrecioTotal`, borrado en cascada desde el encabezado y `NO ACTION` hacia `Articulo`) en `tests/Stock.Tests/Integration/EsquemaMovimientoTests.cs` (RF-014a, RF-020c, RF-021, RF-023, RF-023a, RF-023c)
+- [X] T018 [P] Test de que `vw_StockActual` devuelve 0 para artículos sin movimientos y el saldo correcto con compras y ventas, en `tests/Stock.Tests/Integration/VistaStockActualTests.cs` (RF-030)
+- [X] T019 [P] Test de que la tabla `dbo.ErrorLog` existe y admite inserción tras aplicar las migraciones, en `tests/Stock.Tests/Integration/EsquemaErrorLogTests.cs` (RF-028)
+- [X] T019a [P] Test de la restricción de unicidad del perfil administrador a nivel de base en `tests/Stock.Tests/Integration/EsquemaPerfilTests.cs`: insertar un segundo `Perfil` con `EsAdministrador = 1` se rechaza por el índice único filtrado, mientras que varios perfiles con `EsAdministrador = 0` conviven sin problema (RF-003a)
 
 ### Bloque 2 — Andamiaje mínimo: hace que los tests compilen y fallen contra la base real
 
-- [ ] T020 [P] Crear la entidad `Perfil` en `src/Stock.Api/Domain/Entities/Perfil.cs` con `Descripcion` y la marca `EsAdministrador` (`bool`), que es la identidad de autorización estable e independiente de la Descripción (RF-003a)
-- [ ] T021 [P] Crear la entidad `Usuario` en `src/Stock.Api/Domain/Entities/Usuario.cs` con `Hash` y `Salt` como propiedades separadas
-- [ ] T022 [P] Crear la entidad `Articulo` en `src/Stock.Api/Domain/Entities/Articulo.cs` con los tres parámetros de reposición como `int` (RF-013a)
-- [ ] T023 [P] Crear la entidad `Movimiento` y el enum `TipoMovimiento` (Compra=1, Venta=2) en `src/Stock.Api/Domain/Entities/Movimiento.cs`
-- [ ] T024 [P] Crear la entidad `MovimientoDetalle` en `src/Stock.Api/Domain/Entities/MovimientoDetalle.cs`
-- [ ] T025 [P] Crear la entidad `ErrorLog` en `src/Stock.Api/Domain/Entities/ErrorLog.cs`
-- [ ] T026 Crear `src/Stock.Api/Data/StockDbContext.cs` con los `DbSet` de las **seis** entidades —incluida `ErrorLog`, que es dueña de su esquema aunque en runtime se escriba por otra conexión (R-08)— **sin ninguna configuración de restricciones**
-- [ ] T027 Registrar `StockDbContext` en `src/Stock.Api/Program.cs` con la cadena de conexión tomada de configuración. Es el mínimo necesario para que la `WebApplicationFactory` de T028 arranque: sin este registro, los tests del Bloque 1 fallarían por error de arranque y la puerta T030 verificaría un rojo por el motivo equivocado
-- [ ] T028 Crear la base de tests de integración en `tests/Stock.Tests/Integration/IntegrationTestBase.cs`: levanta `WebApplicationFactory<Stock.Api.Program>` in-process, crea una base efímera por corrida en el SQL Server de compose, le inyecta la cadena de conexión, aplica migraciones y la elimina al finalizar (R-10)
-- [ ] T029 Generar la migración desnuda en `src/Stock.Api/Data/Migrations/`: crea las seis tablas **sin** `CHECK`, sin columnas calculadas, sin índices únicos, sin collations y sin la vista
-- [ ] T030 **Verificar el rojo**: T016–T019a compilan, arrancan y fallan **por la restricción ausente**, no por error de configuración. Un test que pase en este punto está mal escrito y debe corregirse antes de seguir
+- [X] T020 [P] Crear la entidad `Perfil` en `src/Stock.Api/Domain/Entities/Perfil.cs` con `Descripcion` y la marca `EsAdministrador` (`bool`), que es la identidad de autorización estable e independiente de la Descripción (RF-003a)
+- [X] T021 [P] Crear la entidad `Usuario` en `src/Stock.Api/Domain/Entities/Usuario.cs` con `Hash` y `Salt` como propiedades separadas
+- [X] T022 [P] Crear la entidad `Articulo` en `src/Stock.Api/Domain/Entities/Articulo.cs` con los tres parámetros de reposición como `int` (RF-013a)
+- [X] T023 [P] Crear la entidad `Movimiento` y el enum `TipoMovimiento` (Compra=1, Venta=2) en `src/Stock.Api/Domain/Entities/Movimiento.cs`
+- [X] T024 [P] Crear la entidad `MovimientoDetalle` en `src/Stock.Api/Domain/Entities/MovimientoDetalle.cs`
+- [X] T025 [P] Crear la entidad `ErrorLog` en `src/Stock.Api/Domain/Entities/ErrorLog.cs`
+- [X] T026 Crear `src/Stock.Api/Data/StockDbContext.cs` con los `DbSet` de las **seis** entidades —incluida `ErrorLog`, que es dueña de su esquema aunque en runtime se escriba por otra conexión (R-08)— **sin ninguna configuración de restricciones**
+- [X] T027 Registrar `StockDbContext` en `src/Stock.Api/Program.cs` con la cadena de conexión tomada de configuración. Es el mínimo necesario para que la `WebApplicationFactory` de T028 arranque: sin este registro, los tests del Bloque 1 fallarían por error de arranque y la puerta T030 verificaría un rojo por el motivo equivocado
+- [X] T028 Crear la base de tests de integración en `tests/Stock.Tests/Integration/IntegrationTestBase.cs`: levanta `WebApplicationFactory<Stock.Api.Program>` in-process, crea una base efímera por corrida en el SQL Server de compose, le inyecta la cadena de conexión, aplica migraciones y la elimina al finalizar (R-10)
+- [X] T029 Generar la migración desnuda en `src/Stock.Api/Data/Migrations/`: crea las seis tablas **sin** `CHECK`, sin columnas calculadas, sin índices únicos, sin collations y sin la vista
+- [X] T030 **Verificar el rojo**: T016–T019a compilan, arrancan y fallan **por la restricción ausente**, no por error de configuración. Un test que pase en este punto está mal escrito y debe corregirse antes de seguir
 
 ### Bloque 3 — Configuraciones: ponen los tests en verde
 
-- [ ] T031 [P] Configurar `Articulo` en `src/Stock.Api/Data/Configurations/ArticuloConfiguration.cs`: índice único de `Codigo`, collation `Modern_Spanish_CI_AS` en `Codigo`, collation `Modern_Spanish_CI_AI` en `Descripcion`, columna calculada persistida `PrecioVenta`, `CHECK` de no negatividad y `CHECK (StockMinimo <= PuntoPedido AND PuntoPedido <= StockIdeal)`
-- [ ] T032 [P] Configurar `Movimiento` en `src/Stock.Api/Data/Configurations/MovimientoConfiguration.cs`: `Numero` como PK `IDENTITY` y `CHECK Tipo IN (1,2)`
-- [ ] T033 [P] Configurar `MovimientoDetalle` en `src/Stock.Api/Data/Configurations/MovimientoDetalleConfiguration.cs`: columna calculada persistida `PrecioTotal`, `CHECK (Cantidad > 0 AND Cantidad <= 1000000)`, `CHECK (PrecioUnitario >= 0)` (RF-023c), FK a `Movimiento` con `CASCADE`, FK a `Articulo` con `NO ACTION` e índice `IX_MovimientoDetalle_ArticuloId` con `INCLUDE (Cantidad, MovimientoNumero)`
-- [ ] T034 [P] Configurar `Usuario` y `Perfil` en `src/Stock.Api/Data/Configurations/SeguridadConfiguration.cs`: índice único de `NombreUsuario`, FK `Usuario.PerfilId` con `NO ACTION`, `Perfil.EsAdministrador` con `DEFAULT 0` e **índice único filtrado** `WHERE EsAdministrador = 1`, que garantiza en el esquema que exista a lo sumo un perfil administrador (RF-003a)
-- [ ] T035 [P] Configurar `ErrorLog` en `src/Stock.Api/Data/Configurations/ErrorLogConfiguration.cs` (columnas de RF-028, sin relaciones)
-- [ ] T036 Crear la entidad sin clave `StockActualView` en `src/Stock.Api/Data/Views/StockActualView.cs` mapeada a `vw_StockActual`
-- [ ] T037 Generar la migración de restricciones en `src/Stock.Api/Data/Migrations/`: agrega `CHECK`, columnas calculadas, índices únicos —incluido el filtrado de `Perfil.EsAdministrador`— y collations, más el `CREATE VIEW dbo.vw_StockActual` con el `LEFT JOIN` e `ISNULL(...,0)` de [data-model.md](./data-model.md)
-- [ ] T038 **Verificar el verde**: T016–T019a pasan contra la migración completa
+- [X] T031 [P] Configurar `Articulo` en `src/Stock.Api/Data/Configurations/ArticuloConfiguration.cs`: índice único de `Codigo`, collation `Modern_Spanish_CI_AS` en `Codigo`, collation `Modern_Spanish_CI_AI` en `Descripcion`, columna calculada persistida `PrecioVenta`, `CHECK` de no negatividad y `CHECK (StockMinimo <= PuntoPedido AND PuntoPedido <= StockIdeal)`
+- [X] T032 [P] Configurar `Movimiento` en `src/Stock.Api/Data/Configurations/MovimientoConfiguration.cs`: `Numero` como PK `IDENTITY` y `CHECK Tipo IN (1,2)`
+- [X] T033 [P] Configurar `MovimientoDetalle` en `src/Stock.Api/Data/Configurations/MovimientoDetalleConfiguration.cs`: columna calculada persistida `PrecioTotal`, `CHECK (Cantidad > 0 AND Cantidad <= 1000000)`, `CHECK (PrecioUnitario >= 0)` (RF-023c), FK a `Movimiento` con `CASCADE`, FK a `Articulo` con `NO ACTION` e índice `IX_MovimientoDetalle_ArticuloId` con `INCLUDE (Cantidad, MovimientoNumero)`
+- [X] T034 [P] Configurar `Usuario` y `Perfil` en `src/Stock.Api/Data/Configurations/SeguridadConfiguration.cs`: índice único de `NombreUsuario`, FK `Usuario.PerfilId` con `NO ACTION`, `Perfil.EsAdministrador` con `DEFAULT 0` e **índice único filtrado** `WHERE EsAdministrador = 1`, que garantiza en el esquema que exista a lo sumo un perfil administrador (RF-003a)
+- [X] T035 [P] Configurar `ErrorLog` en `src/Stock.Api/Data/Configurations/ErrorLogConfiguration.cs` (columnas de RF-028, sin relaciones)
+- [X] T036 Crear la entidad sin clave `StockActualView` en `src/Stock.Api/Data/Views/StockActualView.cs` mapeada a `vw_StockActual`
+- [X] T037 Generar la migración de restricciones en `src/Stock.Api/Data/Migrations/`: agrega `CHECK`, columnas calculadas, índices únicos —incluido el filtrado de `Perfil.EsAdministrador`— y collations, más el `CREATE VIEW dbo.vw_StockActual` con el `LEFT JOIN` e `ISNULL(...,0)` de [data-model.md](./data-model.md)
+- [X] T038 **Verificar el verde**: T016–T019a pasan contra la migración completa
 
 ### Bloque 4 — Andamiaje de aplicación
 
-- [ ] T039 [P] Crear la siembra de perfiles base en `src/Stock.Api/Data/Seed/DbSeeder.cs`: `administrador` con `EsAdministrador = true`, `administrativo` y `vendedor` con `false`. Es el **único** lugar del sistema que establece la marca (RF-003a)
-- [ ] T040 Completar `src/Stock.Api/Program.cs`: controladores, respuestas `application/problem+json` y el flag `ApplyMigrationsOnStartup` usado sólo en compose (el registro del `DbContext` ya lo hizo T027)
-- [ ] T041 [P] Completar `src/Stock.Web/Program.cs`: MVC, `HttpClient` tipado apuntando a `Stock.Api` y páginas de error. **Sin el filtro de autorización global**: ese filtro es código de producción de RF-012 y su test es T096, en la Fase 6, así que introducirlo acá sería implementar antes del rojo y violaría el Principio I. Lo agrega T105b, después de T096
-- [ ] T042 [P] Crear la base de tests de la capa web en `tests/Stock.Tests/Web/WebTestBase.cs` usando `WebApplicationFactory<Stock.Web.Program>` con la API simulada (R-10). Todavía **sin** sesión simulada: en esta fase la app web no exige autenticación. El fixture de sesión lo agrega T105a, en paralelo exacto con lo que T100 hace del lado de la API
+- [X] T039 [P] Crear la siembra de perfiles base en `src/Stock.Api/Data/Seed/DbSeeder.cs`: `administrador` con `EsAdministrador = true`, `administrativo` y `vendedor` con `false`. Es el **único** lugar del sistema que establece la marca (RF-003a)
+- [X] T040 Completar `src/Stock.Api/Program.cs`: controladores, respuestas `application/problem+json` y el flag `ApplyMigrationsOnStartup` usado sólo en compose (el registro del `DbContext` ya lo hizo T027)
+- [X] T041 [P] Completar `src/Stock.Web/Program.cs`: MVC, `HttpClient` tipado apuntando a `Stock.Api` y páginas de error. **Sin el filtro de autorización global**: ese filtro es código de producción de RF-012 y su test es T096, en la Fase 6, así que introducirlo acá sería implementar antes del rojo y violaría el Principio I. Lo agrega T105b, después de T096
+- [X] T042 [P] Crear la base de tests de la capa web en `tests/Stock.Tests/Web/WebTestBase.cs` usando `WebApplicationFactory<Stock.Web.Program>` con la API simulada (R-10). Todavía **sin** sesión simulada: en esta fase la app web no exige autenticación. El fixture de sesión lo agrega T105a, en paralelo exacto con lo que T100 hace del lado de la API
 
 **Punto de control**: esquema listo, migrable y con sus reglas verificadas por un ciclo rojo→verde real. Las historias pueden comenzar.
 

@@ -17,6 +17,11 @@ de éxito concreto; no es un tutorial de uso.
 ## Puesta en marcha
 
 ```powershell
+# PRIMER PASO — secretos locales (Principio IV).
+# Crear el .env a partir de la plantilla versionada y completar los tres valores:
+# SA_PASSWORD, JWT_SIGNING_KEY y SEED_ADMIN_PASSWORD. El .env está ignorado por git.
+cp .env.example .env
+
 # Restaurar dependencias
 dotnet restore StockModulo.sln
 
