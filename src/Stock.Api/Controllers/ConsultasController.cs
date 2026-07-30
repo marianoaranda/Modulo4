@@ -13,12 +13,49 @@ namespace Stock.Api.Controllers;
 public class ConsultasController : ControllerBase
 {
     private readonly GenerarPedidoQueryService _pedidos;
+    private readonly StockActualQueryService _stock;
     private readonly ExcelExporter _excel;
 
-    public ConsultasController(GenerarPedidoQueryService pedidos, ExcelExporter excel)
+    public ConsultasController(
+        GenerarPedidoQueryService pedidos, StockActualQueryService stock, ExcelExporter excel)
     {
         _pedidos = pedidos;
+        _stock = stock;
         _excel = excel;
+    }
+
+    [HttpGet("stock-actual")]
+    public async Task<IActionResult> StockActual(
+        [FromQuery] string? codigoDesde,
+        [FromQuery] string? codigoHasta,
+        [FromQuery] string? descripcion,
+        CancellationToken ct)
+    {
+        // Los tres parámetros son opcionales: a diferencia de Generar Pedido, acá no hay parámetro
+        // de reposición que determine el resultado, sólo acotadores (RF-025a, RF-027a).
+        var resultado = await _stock.ConsultarAsync(codigoDesde, codigoHasta, descripcion, ct);
+
+        return Ok(resultado);
+    }
+
+    [HttpGet("stock-actual/excel")]
+    public async Task<IActionResult> StockActualExcel(
+        [FromQuery] string? codigoDesde,
+        [FromQuery] string? codigoHasta,
+        [FromQuery] string? descripcion,
+        CancellationToken ct)
+    {
+        var resultado = await _stock.ConsultarAsync(codigoDesde, codigoHasta, descripcion, ct);
+
+        var contenido = _excel.Exportar(
+            "Stock Actual",
+            // RF-025 rotula esta columna "Cantidad", no "Stock Actual": es el mismo valor con el
+            // nombre que el spec fija para esta pantalla.
+            ["Código", "Descripción", "Cantidad"],
+            resultado.Filas,
+            fila => [fila.Codigo, fila.Descripcion, fila.Cantidad]);
+
+        return File(contenido, ExcelExporter.TipoDeContenido, "stock-actual.xlsx");
     }
 
     [HttpGet("generar-pedido")]

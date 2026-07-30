@@ -1,0 +1,77 @@
+@using Stock.Web.Resources
+@model Stock.Web.Models.StockActualViewModel
+@{
+    ViewData["Title"] = "Consulta de Stock Actual";
+}
+
+<h1>Consulta de Stock Actual</h1>
+
+@* Rango inclusive sobre el Código, con ambos extremos opcionales (RF-025a), más el filtro
+   opcional por descripción (RF-027a). *@
+<form method="get" asp-action="Index" class="row g-3 align-items-end mb-4">
+    <input type="hidden" name="consultar" value="true" />
+
+    <div class="col-auto">
+        <label class="form-label" for="codigoDesde">Código desde</label>
+        <input class="form-control" id="codigoDesde" name="codigoDesde" value="@Model.CodigoDesde" />
+    </div>
+
+    <div class="col-auto">
+        <label class="form-label" for="codigoHasta">Código hasta</label>
+        <input class="form-control" id="codigoHasta" name="codigoHasta" value="@Model.CodigoHasta" />
+    </div>
+
+    <div class="col-auto">
+        <label class="form-label" for="descripcion">Filtro por descripción (opcional)</label>
+        <input class="form-control" id="descripcion" name="descripcion" value="@Model.Descripcion" />
+    </div>
+
+    <div class="col-auto">
+        <button type="submit" class="btn btn-primary">Consultar</button>
+    </div>
+
+    @if (Model.Consultada)
+    {
+        <div class="col-auto">
+            <a class="btn btn-outline-secondary"
+               asp-action="Excel"
+               asp-route-codigoDesde="@Model.CodigoDesde"
+               asp-route-codigoHasta="@Model.CodigoHasta"
+               asp-route-descripcion="@Model.Descripcion">Exportar a Excel</a>
+        </div>
+    }
+</form>
+
+@* Mismos dos mensajes que Generar Pedido y con el mismo texto: las dos pantallas consumen el
+   recurso compartido, así que no pueden divergir (RF-032, RF-032a). *@
+@if (Model.Truncado)
+{
+    <div class="alert alert-info" role="status">@MensajesDeConsulta.ResultadoRecortado</div>
+}
+
+@if (Model.MostrarMensajeDeResultadoVacio)
+{
+    <div class="alert alert-info" role="status">@MensajesDeConsulta.ResultadoVacio</div>
+}
+else if (Model.Consultada)
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Código</th>
+                <th>Descripción</th>
+                <th class="text-end">Cantidad</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var fila in Model.Filas)
+            {
+                <tr>
+                    <td>@fila.Codigo</td>
+                    <td>@fila.Descripcion</td>
+                    <td class="text-end">@fila.Cantidad</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

@@ -1,0 +1,54 @@
+@model Stock.Web.Models.MovimientoViewModel
+
+@* El rechazo de la API (400 de validación o 422 de stock) se muestra acá, con los datos del
+   usuario todavía cargados. Un 422 por stock insuficiente es un resultado previsto del sistema,
+   no una falla: mandarlo a la página de error obligaría a recargar todo de nuevo. *@
+@if (!string.IsNullOrWhiteSpace(Model.MensajeDeRechazo))
+{
+    <div class="alert alert-warning" role="alert">@Model.MensajeDeRechazo</div>
+}
+
+<div class="row g-3 mb-3">
+    <div class="col-auto">
+        <label class="form-label" asp-for="Tipo">Tipo</label>
+        <select class="form-select" asp-for="Tipo"
+                asp-items="Html.GetEnumSelectList<Stock.Web.Models.TipoMovimientoWeb>()"></select>
+    </div>
+
+    <div class="col-auto">
+        <label class="form-label" asp-for="Fecha">Fecha</label>
+        <input class="form-control" type="date" asp-for="Fecha" />
+    </div>
+</div>
+
+<h2 class="h5">Detalle</h2>
+
+<table class="table" id="detalle">
+    <thead>
+        <tr>
+            <th>Artículo (Id)</th>
+            <th>Cantidad</th>
+            <th>Precio Unitario</th>
+        </tr>
+    </thead>
+    <tbody>
+        @for (var i = 0; i < Model.Detalle.Count; i++)
+        {
+            <tr>
+                <td><input class="form-control" asp-for="Detalle[i].ArticuloId" /></td>
+                <td><input class="form-control" asp-for="Detalle[i].Cantidad" /></td>
+                <td><input class="form-control" asp-for="Detalle[i].PrecioUnitario" /></td>
+            </tr>
+        }
+        @* Filas en blanco para poder agregar líneas sin JavaScript. Las que queden vacías no se
+           envían a la API: son filas del formulario que el usuario nunca completó. *@
+        @for (var i = Model.Detalle.Count; i < Model.Detalle.Count + 4; i++)
+        {
+            <tr>
+                <td><input class="form-control" name="Detalle[@i].ArticuloId" value="" /></td>
+                <td><input class="form-control" name="Detalle[@i].Cantidad" value="0" /></td>
+                <td><input class="form-control" name="Detalle[@i].PrecioUnitario" value="0" /></td>
+            </tr>
+        }
+    </tbody>
+</table>

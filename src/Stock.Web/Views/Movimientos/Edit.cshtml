@@ -1,0 +1,13 @@
+@model Stock.Web.Models.MovimientoViewModel
+@{
+    ViewData["Title"] = $"Movimiento {Model.Numero}";
+}
+
+<h1>Modificar movimiento @Model.Numero</h1>
+
+<form method="post" asp-action="Edit" asp-route-id="@Model.Numero">
+    <partial name="_Formulario" model="Model" />
+
+    <button type="submit" class="btn btn-primary">Grabar</button>
+    <a class="btn btn-secondary" asp-action="Index">Cancelar</a>
+</form>

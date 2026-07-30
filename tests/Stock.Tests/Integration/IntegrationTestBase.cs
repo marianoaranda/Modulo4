@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Stock.Api.Data;
 
 namespace Stock.Tests.Integration;
@@ -65,6 +66,13 @@ public abstract class IntegrationTestBase
                 builder.UseSetting("Jwt:SigningKey", ClaveDeFirmaDePrueba);
                 builder.UseSetting("SEED_ADMIN_PASSWORD", PasswordAdminDePrueba);
                 builder.UseSetting("ApplyMigrationsOnStartup", "false");
+
+                // Sin esto, una excepción no controlada de la API llega al test convertida en un
+                // 500 genérico y sin rastro: el middleware la registra por ILogger y los
+                // proveedores por defecto no escriben a la salida de NUnit. Diagnosticar un fallo
+                // se vuelve entonces adivinar.
+                builder.ConfigureServices(services =>
+                    services.AddLogging(logging => logging.AddProvider(new ProveedorParaNUnit())));
             });
 
         Client = Factory.CreateClient();

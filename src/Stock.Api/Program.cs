@@ -31,9 +31,18 @@ public partial class Program
             o.UseSqlServer(opciones.CadenaDeConexion));
 
         builder.Services.AddScoped<GenerarPedidoQueryService>();
+        builder.Services.AddScoped<StockActualQueryService>();
+        builder.Services.AddScoped<ArticuloLockRepository>();
+        builder.Services.AddScoped<MovimientoService>();
         builder.Services.AddSingleton<ExcelExporter>();
 
-        builder.Services.AddControllers();
+        builder.Services.AddControllers()
+            .AddJsonOptions(json =>
+                // El Tipo de Movimiento viaja como "Compra"/"Venta" según el contrato. Un valor
+                // fuera del conjunto cerrado falla al deserializar y se traduce en un 400
+                // (RF-020b).
+                json.JsonSerializerOptions.Converters.Add(
+                    new System.Text.Json.Serialization.JsonStringEnumConverter()));
 
         // Todas las respuestas de error viajan como application/problem+json (RFC 7807), incluido
         // el 400 que produce el binder al recibir un no entero en un campo entero (RF-018a).
