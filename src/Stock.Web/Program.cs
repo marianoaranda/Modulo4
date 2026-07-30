@@ -21,6 +21,14 @@ public partial class Program
 
         builder.Services.AddControllersWithViews();
 
+        // Por defecto Razor codifica como entidades numéricas todo lo que no sea ASCII básico, de
+        // modo que "descripción" llegaría al navegador como "descripci&#xF3;n". Se ve bien, pero
+        // hace que el HTML no contenga literalmente los textos que RF-032 y RF-032a fijan al
+        // carácter. Ampliar el rango es lo correcto para una aplicación en español.
+        builder.Services.Configure<Microsoft.Extensions.WebEncoders.WebEncoderOptions>(opciones =>
+            opciones.TextEncoderSettings = new System.Text.Encodings.Web.TextEncoderSettings(
+                System.Text.Unicode.UnicodeRanges.All));
+
         var direccionDeLaApi = builder.Configuration["StockApi:BaseUrl"];
 
         builder.Services.AddHttpClient<StockApiClient>(cliente =>

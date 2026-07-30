@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Stock.Api.Configuration;
 using Stock.Api.Data;
 using Stock.Api.Data.Seed;
+using Stock.Api.Export;
+using Stock.Api.Services;
 
 namespace Stock.Api;
 
@@ -27,6 +29,9 @@ public partial class Program
 
         builder.Services.AddDbContext<StockDbContext>(o =>
             o.UseSqlServer(opciones.CadenaDeConexion));
+
+        builder.Services.AddScoped<GenerarPedidoQueryService>();
+        builder.Services.AddSingleton<ExcelExporter>();
 
         builder.Services.AddControllers();
 

@@ -138,27 +138,27 @@ el primer momento, sin haber demostrado nada.
 
 ### Tests de la Historia 1 ⚠️ ESCRIBIR PRIMERO, DEBEN FALLAR
 
-- [ ] T043 [P] [US1] Test unitario de las 6 combinaciones contra el Conjunto de Datos de Referencia — 15 cantidades asertadas y 9 exclusiones verificadas como ausencia de fila — en `tests/Stock.Tests/Unit/PedidoCalculatorTests.cs`
-- [ ] T044 [US1] Agregar a `tests/Stock.Tests/Unit/PedidoCalculatorTests.cs` el caso de que la cantidad a pedir nunca es negativa cuando el stock supera el nivel (mismo archivo que T043, no paralelizable)
-- [ ] T045 [P] [US1] Test de contrato de `GET /api/consultas/generar-pedido` en `tests/Stock.Tests/Integration/GenerarPedidoContractTests.cs`: omitir `soloBajoMinimo` o `modoPedido` devuelve 400 sin aplicar ningún valor por defecto, un `modoPedido` inválido devuelve 400, y el endpoint **no acepta parámetros de rango** (RF-026a, RF-026b)
-- [ ] T046 [P] [US1] Test de integración de que un artículo sin movimientos aparece con stock 0 y cantidad a pedir igual a su stock mínimo, en `tests/Stock.Tests/Integration/GenerarPedidoTests.cs` (V-7)
-- [ ] T047 [US1] Agregar a `tests/Stock.Tests/Integration/GenerarPedidoTests.cs` el caso de que con `soloBajoMinimo=false` se listan todos los artículos incluidos los de cantidad 0
-- [ ] T048 [US1] Agregar a `tests/Stock.Tests/Integration/GenerarPedidoTests.cs` el caso del resultado vacío: la respuesta trae cero filas, sin error, y la vista muestra el texto exacto de RF-032
-- [ ] T048a [US1] Agregar a `tests/Stock.Tests/Integration/GenerarPedidoTests.cs` los casos del tope y el orden que RF-027 exige a **ambas** consultas y que hasta ahora sólo se verificaban en Stock Actual: sobre más de 10.000 artículos, dos corridas devuelven el mismo conjunto ordenado por Código con `truncado=true`, y el recorte se aplica **después** de filtrar y ordenar (RF-027, RF-027b, RF-027c)
-- [ ] T048b [US1] Agregar a `tests/Stock.Tests/Integration/GenerarPedidoTests.cs` el caso del filtro por descripción insensible a mayúsculas y acentos en Generar Pedido, y que un filtro vacío no acota el resultado (RF-027a)
-- [ ] T049 [P] [US1] Test de integración de que el `.xlsx` exportado replica filas, orden y recorte de la respuesta JSON, **y que un resultado vacío exporta sólo los encabezados**, en `tests/Stock.Tests/Integration/ExportacionExcelTests.cs` (V-10, RF-031)
-- [ ] T050 [P] [US1] Test de la vista de Generar Pedido en `tests/Stock.Tests/Web/GenerarPedidoControllerTests.cs`: envío de los dos parámetros, render del aviso de recorte con el texto exacto de RF-032a, mensaje de resultado vacío con el texto exacto de RF-032 y retransmisión del Excel
+- [X] T043 [P] [US1] Test unitario de las 6 combinaciones contra el Conjunto de Datos de Referencia — 15 cantidades asertadas y 9 exclusiones verificadas como ausencia de fila — en `tests/Stock.Tests/Unit/PedidoCalculatorTests.cs`
+- [X] T044 [US1] Agregar a `tests/Stock.Tests/Unit/PedidoCalculatorTests.cs` el caso de que la cantidad a pedir nunca es negativa cuando el stock supera el nivel (mismo archivo que T043, no paralelizable)
+- [X] T045 [P] [US1] Test de contrato de `GET /api/consultas/generar-pedido` en `tests/Stock.Tests/Integration/GenerarPedidoContractTests.cs`: omitir `soloBajoMinimo` o `modoPedido` devuelve 400 sin aplicar ningún valor por defecto, un `modoPedido` inválido devuelve 400, y el endpoint **no acepta parámetros de rango** (RF-026a, RF-026b)
+- [X] T046 [P] [US1] Test de integración de que un artículo sin movimientos aparece con stock 0 y cantidad a pedir igual a su stock mínimo, en `tests/Stock.Tests/Integration/GenerarPedidoTests.cs` (V-7)
+- [X] T047 [US1] Agregar a `tests/Stock.Tests/Integration/GenerarPedidoTests.cs` el caso de que con `soloBajoMinimo=false` se listan todos los artículos incluidos los de cantidad 0
+- [X] T048 [US1] Agregar a `tests/Stock.Tests/Integration/GenerarPedidoTests.cs` el caso del resultado vacío: la respuesta trae cero filas, sin error, y la vista muestra el texto exacto de RF-032
+- [X] T048a [US1] Agregar a `tests/Stock.Tests/Integration/GenerarPedidoTests.cs` los casos del tope y el orden que RF-027 exige a **ambas** consultas y que hasta ahora sólo se verificaban en Stock Actual: sobre más de 10.000 artículos, dos corridas devuelven el mismo conjunto ordenado por Código con `truncado=true`, y el recorte se aplica **después** de filtrar y ordenar (RF-027, RF-027b, RF-027c)
+- [X] T048b [US1] Agregar a `tests/Stock.Tests/Integration/GenerarPedidoTests.cs` el caso del filtro por descripción insensible a mayúsculas y acentos en Generar Pedido, y que un filtro vacío no acota el resultado (RF-027a)
+- [X] T049 [P] [US1] Test de integración de que el `.xlsx` exportado replica filas, orden y recorte de la respuesta JSON, **y que un resultado vacío exporta sólo los encabezados**, en `tests/Stock.Tests/Integration/ExportacionExcelTests.cs` (V-10, RF-031)
+- [X] T050 [P] [US1] Test de la vista de Generar Pedido en `tests/Stock.Tests/Web/GenerarPedidoControllerTests.cs`: envío de los dos parámetros, render del aviso de recorte con el texto exacto de RF-032a, mensaje de resultado vacío con el texto exacto de RF-032 y retransmisión del Excel
 
 ### Implementación de la Historia 1
 
-- [ ] T051 [P] [US1] Crear el enum `ModoPedido` en `src/Stock.Api/Domain/Pedido/ModoPedido.cs`
-- [ ] T052 [US1] Implementar `PedidoCalculator` como función pura sin dependencias de EF Core ni ASP.NET en `src/Stock.Api/Domain/Pedido/PedidoCalculator.cs` (Nivel, Incluir y `MAX(0, Nivel − Stock)`)
-- [ ] T053 [US1] Implementar `GenerarPedidoQueryService` en `src/Stock.Api/Services/GenerarPedidoQueryService.cs` consumiendo `vw_StockActual` y aplicando el pipeline filtrar → ordenar por Código → recortar a 10.000 → marcar `truncado`
-- [ ] T054 [US1] Implementar `ExcelExporter` con ClosedXML en `src/Stock.Api/Export/ExcelExporter.cs`, generando `.xlsx` a partir de las filas ya recortadas y con sólo encabezados si no hay filas (compartido con US2)
-- [ ] T055 [US1] Implementar `GET /api/consultas/generar-pedido` y `GET /api/consultas/generar-pedido/excel` en `src/Stock.Api/Controllers/ConsultasController.cs` según [contracts/openapi.yaml](./contracts/openapi.yaml)
-- [ ] T056 [P] [US1] Crear el `GenerarPedidoViewModel` en `src/Stock.Web/Models/GenerarPedidoViewModel.cs`
-- [ ] T057 [US1] Implementar `GenerarPedidoController` en `src/Stock.Web/Controllers/GenerarPedidoController.cs` consumiendo la API y retransmitiendo el Excel
-- [ ] T058 [US1] Crear la vista de Generar Pedido en `src/Stock.Web/Views/GenerarPedido/Index.cshtml` con los dos parámetros de reposición, el filtro opcional, el botón de exportar, y los dos mensajes informativos con el **texto literal** que fijan RF-032 y RF-032a, tomados de un archivo de recursos compartido para que vista y test no puedan divergir
+- [X] T051 [P] [US1] Crear el enum `ModoPedido` en `src/Stock.Api/Domain/Pedido/ModoPedido.cs`
+- [X] T052 [US1] Implementar `PedidoCalculator` como función pura sin dependencias de EF Core ni ASP.NET en `src/Stock.Api/Domain/Pedido/PedidoCalculator.cs` (Nivel, Incluir y `MAX(0, Nivel − Stock)`)
+- [X] T053 [US1] Implementar `GenerarPedidoQueryService` en `src/Stock.Api/Services/GenerarPedidoQueryService.cs` consumiendo `vw_StockActual` y aplicando el pipeline filtrar → ordenar por Código → recortar a 10.000 → marcar `truncado`
+- [X] T054 [US1] Implementar `ExcelExporter` con ClosedXML en `src/Stock.Api/Export/ExcelExporter.cs`, generando `.xlsx` a partir de las filas ya recortadas y con sólo encabezados si no hay filas (compartido con US2)
+- [X] T055 [US1] Implementar `GET /api/consultas/generar-pedido` y `GET /api/consultas/generar-pedido/excel` en `src/Stock.Api/Controllers/ConsultasController.cs` según [contracts/openapi.yaml](./contracts/openapi.yaml)
+- [X] T056 [P] [US1] Crear el `GenerarPedidoViewModel` en `src/Stock.Web/Models/GenerarPedidoViewModel.cs`
+- [X] T057 [US1] Implementar `GenerarPedidoController` en `src/Stock.Web/Controllers/GenerarPedidoController.cs` consumiendo la API y retransmitiendo el Excel
+- [X] T058 [US1] Crear la vista de Generar Pedido en `src/Stock.Web/Views/GenerarPedido/Index.cshtml` con los dos parámetros de reposición, el filtro opcional, el botón de exportar, y los dos mensajes informativos con el **texto literal** que fijan RF-032 y RF-032a, tomados de un archivo de recursos compartido para que vista y test no puedan divergir
 
 **Punto de control**: US1 funciona de punta a punta sobre datos sembrados. Es el MVP demostrable.
 

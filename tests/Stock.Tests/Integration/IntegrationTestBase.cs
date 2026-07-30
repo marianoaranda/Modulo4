@@ -129,6 +129,34 @@ public abstract class IntegrationTestBase
         return new StockDbContext(options);
     }
 
+    /// <summary>
+    /// Siembra artículos en masa para los tests de tope y orden. Se hace con un
+    /// <c>INSERT ... SELECT</c> sobre una tabla de números y no fila por fila con EF Core, porque
+    /// 10.001 <c>SaveChanges</c> tardarían minutos y esto es sólo preparación del escenario.
+    ///
+    /// Los códigos se rellenan con ceros a la izquierda para que el orden alfabético coincida con
+    /// el numérico: sin eso, "B-10" iría antes que "B-9" y el test de determinismo del recorte
+    /// verificaría algo distinto de lo que dice verificar.
+    /// </summary>
+    protected async Task SembrarArticulosEnMasaAsync(
+        int cantidad, string prefijo = "B-", string descripcion = "Artículo de volumen")
+    {
+        await EjecutarSqlAsync($"""
+            WITH Numeros AS (
+                SELECT TOP ({cantidad})
+                       ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS n
+                FROM   sys.all_objects a
+                CROSS JOIN sys.all_objects b
+            )
+            INSERT INTO dbo.Articulo
+                (Codigo, Descripcion, PrecioCosto, Margen, StockMinimo, PuntoPedido, StockIdeal)
+            SELECT '{prefijo}' + RIGHT('00000' + CAST(n AS varchar(6)), 6),
+                   '{descripcion} ' + CAST(n AS varchar(6)),
+                   10.00, 0, 0, 0, 0
+            FROM   Numeros;
+            """);
+    }
+
     protected async Task<int> EjecutarSqlAsync(string sql)
     {
         await using var conexion = new SqlConnection(CadenaDeConexion);

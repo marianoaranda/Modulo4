@@ -1,0 +1,85 @@
+@using Stock.Web.Resources
+@model Stock.Web.Models.GenerarPedidoViewModel
+@{
+    ViewData["Title"] = "Generar Pedido";
+}
+
+<h1>Generar Pedido</h1>
+
+@* Los dos parámetros de reposición (RF-026) más el filtro opcional de acotación (RF-027a).
+   No hay parámetro de rango: RF-026a lo excluye explícitamente de esta consulta. *@
+<form method="get" asp-action="Index" class="row g-3 align-items-end mb-4">
+    <div class="col-auto">
+        <label class="form-label" for="soloBajoMinimo">Solo bajo mínimo</label>
+        <select class="form-select" id="soloBajoMinimo" name="soloBajoMinimo" required>
+            <option value="" disabled selected="@(Model.SoloBajoMinimo is null)">Elegir…</option>
+            <option value="false" selected="@(Model.SoloBajoMinimo == false)">No</option>
+            <option value="true" selected="@(Model.SoloBajoMinimo == true)">Sí</option>
+        </select>
+    </div>
+
+    <div class="col-auto">
+        <label class="form-label" for="modoPedido">Modo de Pedido</label>
+        <select class="form-select" id="modoPedido" name="modoPedido" required>
+            <option value="" disabled selected="@(Model.ModoPedido is null)">Elegir…</option>
+            <option value="HastaStockMinimo" selected="@(Model.ModoPedido == Stock.Web.Models.ModoPedidoWeb.HastaStockMinimo)">Hasta Stock Mínimo</option>
+            <option value="HastaPuntoPedido" selected="@(Model.ModoPedido == Stock.Web.Models.ModoPedidoWeb.HastaPuntoPedido)">Hasta Punto Pedido</option>
+            <option value="HastaStockIdeal" selected="@(Model.ModoPedido == Stock.Web.Models.ModoPedidoWeb.HastaStockIdeal)">Hasta Stock Ideal</option>
+        </select>
+    </div>
+
+    <div class="col-auto">
+        <label class="form-label" for="descripcion">Filtro por descripción (opcional)</label>
+        <input class="form-control" id="descripcion" name="descripcion" value="@Model.Descripcion" />
+    </div>
+
+    <div class="col-auto">
+        <button type="submit" class="btn btn-primary">Consultar</button>
+    </div>
+
+    @if (Model.Consultada)
+    {
+        <div class="col-auto">
+            <a class="btn btn-outline-secondary"
+               asp-action="Excel"
+               asp-route-soloBajoMinimo="@Model.SoloBajoMinimo"
+               asp-route-modoPedido="@Model.ModoPedido"
+               asp-route-descripcion="@Model.Descripcion">Exportar a Excel</a>
+        </div>
+    }
+</form>
+
+@* Los dos mensajes informativos, con el texto literal de RF-032 y RF-032a tomado del recurso
+   compartido para que esta vista, la de Stock Actual y sus tests no puedan divergir.
+   Son informativos, no errores: por eso `alert-info` y no `alert-danger`. *@
+@if (Model.Truncado)
+{
+    <div class="alert alert-info" role="status">@MensajesDeConsulta.ResultadoRecortado</div>
+}
+
+@if (Model.MostrarMensajeDeResultadoVacio)
+{
+    <div class="alert alert-info" role="status">@MensajesDeConsulta.ResultadoVacio</div>
+}
+else if (Model.Consultada)
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Código</th>
+                <th>Descripción</th>
+                <th class="text-end">Cantidad a Pedir</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var fila in Model.Filas)
+            {
+                <tr>
+                    <td>@fila.Codigo</td>
+                    <td>@fila.Descripcion</td>
+                    <td class="text-end">@fila.CantidadAPedir</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
