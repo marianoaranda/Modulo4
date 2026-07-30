@@ -1,0 +1,61 @@
+@model List<Stock.Web.Models.ArticuloViewModel>
+@{
+    ViewData["Title"] = "Artículos";
+}
+
+<h1>Artículos</h1>
+
+<form method="get" asp-action="Index" class="row g-3 align-items-end mb-3">
+    <div class="col-auto">
+        <label class="form-label" for="descripcion">Filtro por descripción</label>
+        <input class="form-control" id="descripcion" name="descripcion" value="@ViewData["Descripcion"]" />
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-primary">Buscar</button>
+    </div>
+    <div class="col-auto">
+        <a class="btn btn-success" asp-action="Create">Nuevo artículo</a>
+    </div>
+</form>
+
+@if (Model.Count == 0)
+{
+    <div class="alert alert-info" role="status">No hay artículos que mostrar.</div>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Código</th>
+                <th>Descripción</th>
+                <th class="text-end">Costo</th>
+                <th class="text-end">Margen</th>
+                <th class="text-end">Venta</th>
+                <th class="text-end">Mínimo</th>
+                <th class="text-end">Punto Pedido</th>
+                <th class="text-end">Ideal</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var articulo in Model)
+            {
+                <tr>
+                    <td>@articulo.Codigo</td>
+                    <td>@articulo.Descripcion</td>
+                    <td class="text-end">@articulo.PrecioCosto.ToString("N2")</td>
+                    <td class="text-end">@articulo.Margen.ToString("N2")</td>
+                    <td class="text-end">@articulo.PrecioVenta.ToString("N2")</td>
+                    <td class="text-end">@articulo.StockMinimo</td>
+                    <td class="text-end">@articulo.PuntoPedido</td>
+                    <td class="text-end">@articulo.StockIdeal</td>
+                    <td>
+                        <a asp-action="Edit" asp-route-id="@articulo.ArticuloId">Modificar</a>
+                        <a asp-action="Delete" asp-route-id="@articulo.ArticuloId">Baja</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

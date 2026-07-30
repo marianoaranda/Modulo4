@@ -34,6 +34,7 @@ public partial class Program
         builder.Services.AddScoped<StockActualQueryService>();
         builder.Services.AddScoped<ArticuloLockRepository>();
         builder.Services.AddScoped<MovimientoService>();
+        builder.Services.AddScoped<ArticuloService>();
         builder.Services.AddSingleton<ExcelExporter>();
 
         builder.Services.AddControllers()

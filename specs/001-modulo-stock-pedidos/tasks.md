@@ -213,21 +213,21 @@ el primer momento, sin haber demostrado nada.
 
 ### Tests de la Historia 3 ⚠️ ESCRIBIR PRIMERO, DEBEN FALLAR
 
-- [ ] T082 [P] [US3] Tests unitarios del validador de artículo (código vacío, valores negativos, incumplimiento de Mínimo ≤ Punto de Pedido ≤ Ideal) en `tests/Stock.Tests/Unit/ArticuloValidatorTests.cs`. **Sin caso de "parámetro no entero"**, por el mismo motivo que T059: los tres parámetros llegan tipados como `int`. Ese rechazo se verifica en T085a (RF-018, RF-019)
-- [ ] T083 [P] [US3] Tests de la API de artículos en `tests/Stock.Tests/Integration/ArticulosTests.cs`: precio de venta calculado, código duplicado rechazado con 409 —incluido el duplicado que difiere sólo en mayúsculas—, y baja de artículo con movimientos rechazada con 409 conservando el histórico (RF-014a, RF-016, RF-017, RF-017a)
-- [ ] T084 [US3] Agregar a `tests/Stock.Tests/Integration/ArticulosTests.cs` el caso de que modificar los parámetros de reposición se refleja en la siguiente ejecución de Generar Pedido (RF-033)
-- [ ] T085 [P] [US3] Test de contrato del CRUD de `/api/articulos` en `tests/Stock.Tests/Integration/ArticulosContractTests.cs`, incluido el recorrido completo alta → lectura → modificación → baja (RF-013, RF-014, RF-015)
-- [ ] T085a [US3] Agregar a `tests/Stock.Tests/Integration/ArticulosContractTests.cs` el rechazo del no entero en el borde: un cuerpo con `"stockMinimo": 2.5` devuelve **400 `application/problem+json`** identificando el campo, sin grabar (RF-018a)
-- [ ] T086 [P] [US3] Tests de la capa web del ABM de artículos en `tests/Stock.Tests/Web/ArticulosControllerTests.cs`: precio de venta como sólo lectura y propagación del 409 a la vista
+- [X] T082 [P] [US3] Tests unitarios del validador de artículo (código vacío, valores negativos, incumplimiento de Mínimo ≤ Punto de Pedido ≤ Ideal) en `tests/Stock.Tests/Unit/ArticuloValidatorTests.cs`. **Sin caso de "parámetro no entero"**, por el mismo motivo que T059: los tres parámetros llegan tipados como `int`. Ese rechazo se verifica en T085a (RF-018, RF-019)
+- [X] T083 [P] [US3] Tests de la API de artículos en `tests/Stock.Tests/Integration/ArticulosTests.cs`: precio de venta calculado, código duplicado rechazado con 409 —incluido el duplicado que difiere sólo en mayúsculas—, y baja de artículo con movimientos rechazada con 409 conservando el histórico (RF-014a, RF-016, RF-017, RF-017a)
+- [X] T084 [US3] Agregar a `tests/Stock.Tests/Integration/ArticulosTests.cs` el caso de que modificar los parámetros de reposición se refleja en la siguiente ejecución de Generar Pedido (RF-033)
+- [X] T085 [P] [US3] Test de contrato del CRUD de `/api/articulos` en `tests/Stock.Tests/Integration/ArticulosContractTests.cs`, incluido el recorrido completo alta → lectura → modificación → baja (RF-013, RF-014, RF-015)
+- [X] T085a [US3] Agregar a `tests/Stock.Tests/Integration/ArticulosContractTests.cs` el rechazo del no entero en el borde: un cuerpo con `"stockMinimo": 2.5` devuelve **400 `application/problem+json`** identificando el campo, sin grabar (RF-018a)
+- [X] T086 [P] [US3] Tests de la capa web del ABM de artículos en `tests/Stock.Tests/Web/ArticulosControllerTests.cs`: precio de venta como sólo lectura y propagación del 409 a la vista
 
 ### Implementación de la Historia 3
 
-- [ ] T087 [P] [US3] Implementar `ArticuloValidator` en `src/Stock.Api/Domain/Validation/ArticuloValidator.cs` (RF-018, RF-019)
-- [ ] T088 [US3] Implementar `ArticuloService` en `src/Stock.Api/Services/ArticuloService.cs` con la verificación previa de baja restringida para devolver un 409 legible en vez de una violación de FK
-- [ ] T089 [US3] Implementar el CRUD de `/api/articulos` en `src/Stock.Api/Controllers/ArticulosController.cs`
-- [ ] T090 [P] [US3] Crear el `ArticuloViewModel` en `src/Stock.Web/Models/ArticuloViewModel.cs`
-- [ ] T091 [US3] Implementar `ArticulosController` en `src/Stock.Web/Controllers/ArticulosController.cs`
-- [ ] T092 [US3] Crear las vistas del ABM de artículos en `src/Stock.Web/Views/Articulos/` (Index, Create, Edit, Delete) mostrando el precio de venta como campo de sólo lectura
+- [X] T087 [P] [US3] Implementar `ArticuloValidator` en `src/Stock.Api/Domain/Validation/ArticuloValidator.cs` (RF-018, RF-019)
+- [X] T088 [US3] Implementar `ArticuloService` en `src/Stock.Api/Services/ArticuloService.cs` con la verificación previa de baja restringida para devolver un 409 legible en vez de una violación de FK
+- [X] T089 [US3] Implementar el CRUD de `/api/articulos` en `src/Stock.Api/Controllers/ArticulosController.cs`
+- [X] T090 [P] [US3] Crear el `ArticuloViewModel` en `src/Stock.Web/Models/ArticuloViewModel.cs`
+- [X] T091 [US3] Implementar `ArticulosController` en `src/Stock.Web/Controllers/ArticulosController.cs`
+- [X] T092 [US3] Crear las vistas del ABM de artículos en `src/Stock.Web/Views/Articulos/` (Index, Create, Edit, Delete) mostrando el precio de venta como campo de sólo lectura
 
 **Punto de control**: US1, US2 y US3 funcionan de forma independiente. El valor de negocio central está completo.
 
