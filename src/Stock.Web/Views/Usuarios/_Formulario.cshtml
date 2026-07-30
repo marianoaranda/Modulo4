@@ -1,0 +1,38 @@
+@model Stock.Web.Models.UsuarioViewModel
+
+@if (!string.IsNullOrWhiteSpace(Model.MensajeDeRechazo))
+{
+    <div class="alert alert-warning" role="alert">@Model.MensajeDeRechazo</div>
+}
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <label class="form-label" asp-for="NombreUsuario"></label>
+        <input class="form-control" asp-for="NombreUsuario" autocomplete="off" />
+    </div>
+
+    <div class="col-md-5">
+        <label class="form-label" asp-for="NombreCompleto"></label>
+        <input class="form-control" asp-for="NombreCompleto" />
+    </div>
+
+    <div class="col-md-3">
+        <label class="form-label" asp-for="PerfilId"></label>
+        <select class="form-select" asp-for="PerfilId"
+                asp-items="@(new SelectList(Model.Perfiles, "PerfilId", "Descripcion"))"></select>
+    </div>
+</div>
+
+<div class="row g-3 mt-1">
+    <div class="col-md-4">
+        <label class="form-label" asp-for="Password"></label>
+        <input class="form-control" asp-for="Password" type="password" autocomplete="new-password" />
+        @* RF-009. Se enuncia la política completa para que el usuario no tenga que adivinar cuál
+           de las tres condiciones falló, y RF-006 para que nadie complete el campo "por las
+           dudas" al modificar. *@
+        <div class="form-text">
+            Mínimo 8 caracteres, con al menos una letra y al menos un dígito. Se admiten símbolos.
+            Al modificar, dejarlo vacío conserva la contraseña actual.
+        </div>
+    </div>
+</div>

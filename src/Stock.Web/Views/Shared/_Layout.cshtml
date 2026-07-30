@@ -1,49 +1,81 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+@using Stock.Web.Services
+@{
+    // RF-010 y RF-010a: las entradas de los dos ABM de seguridad se muestran según el claim
+    // `es_admin` de la cookie de sesión, que copia la marca inmutable del perfil.
+    //
+    // NUNCA se compara la Descripción del perfil contra la cadena "administrador": un perfil
+    // renombrado a "administrador" no tiene por qué ver estas pantallas, y el perfil administrador
+    // renombrado a cualquier otra cosa sí (RF-003a).
+    //
+    // Ocultarlas no es control de acceso —la API responde 403 igual— sino no ofrecer pantallas
+    // destinadas a fallar.
+    var esAdministrador = User.HasClaim(ClaimsDeSesion.EsAdmin, "true");
+    var haySesion = User.Identity?.IsAuthenticated == true;
+}
+<!DOCTYPE html>
+<html lang="es">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Stock.Web</title>
+    <title>@ViewData["Title"] - Módulo de Stock</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/Stock.Web.styles.css" asp-append-version="true" />
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+        <nav class="navbar navbar-expand-sm navbar-light bg-white border-bottom mb-3">
             <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">Stock.Web</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
+                <a class="navbar-brand" asp-controller="Home" asp-action="Index">Módulo de Stock</a>
+
+                @if (haySesion)
+                {
+                    <ul class="navbar-nav me-auto">
+                        @* Las dos consultas: el valor de negocio central del módulo. *@
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                            <a class="nav-link" href="/GenerarPedido">Generar Pedido</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+                            <a class="nav-link" href="/StockActual">Stock Actual</a>
                         </li>
+
+                        @* ABM de negocio: disponibles para todo usuario autenticado, según el
+                           alcance cerrado del PRD. *@
+                        <li class="nav-item">
+                            <a class="nav-link" href="/Articulos">Artículos</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/Movimientos">Movimientos</a>
+                        </li>
+
+                        @* ABM de seguridad: sólo para el perfil administrador. *@
+                        @if (esAdministrador)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" href="/Usuarios">Usuarios</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/Perfiles">Perfiles</a>
+                            </li>
+                        }
                     </ul>
-                </div>
+
+                    <form method="post" asp-controller="Cuenta" asp-action="Logout" class="d-flex">
+                        <span class="navbar-text me-2">@User.Identity!.Name</span>
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">Salir</button>
+                    </form>
+                }
             </div>
         </nav>
     </header>
+
     <div class="container">
-        <main role="main" class="pb-3">
+        <main role="main">
             @RenderBody()
         </main>
     </div>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - Stock.Web - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-        </div>
-    </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

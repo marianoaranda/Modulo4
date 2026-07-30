@@ -1,0 +1,25 @@
+@model Stock.Web.Models.PerfilViewModel
+
+@if (!string.IsNullOrWhiteSpace(Model.MensajeDeRechazo))
+{
+    <div class="alert alert-warning" role="alert">@Model.MensajeDeRechazo</div>
+}
+
+<div class="mb-3">
+    <label class="form-label" asp-for="Descripcion"></label>
+    <input class="form-control" asp-for="Descripcion" />
+    <div class="form-text">
+        La Descripción es un rótulo editable. Cambiarla no otorga ni quita privilegios: el acceso a
+        los ABM de seguridad lo determina una marca interna que no se edita desde acá.
+    </div>
+</div>
+
+@* NO hay control para EsAdministrador. La marca se establece exclusivamente en la siembra y
+   ningún DTO de la API la acepta (RF-003a); ofrecer el control sugeriría que se puede fabricar un
+   administrador desde esta pantalla. *@
+@if (Model.EsAdministrador)
+{
+    <div class="alert alert-info" role="status">
+        Éste es el perfil administrador del sistema. No puede eliminarse ni perder esa condición.
+    </div>
+}

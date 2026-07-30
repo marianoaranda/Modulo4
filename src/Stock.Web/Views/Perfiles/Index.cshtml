@@ -1,0 +1,39 @@
+@model List<Stock.Web.Models.PerfilViewModel>
+@{
+    ViewData["Title"] = "Perfiles";
+}
+
+<h1>Perfiles de seguridad</h1>
+
+<p><a class="btn btn-primary" asp-action="Create">Nuevo perfil</a></p>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>Descripción</th>
+            <th>Administrador</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var perfil in Model)
+        {
+            <tr>
+                <td>@perfil.PerfilId</td>
+                <td>@perfil.Descripcion</td>
+                @* Se muestra, no se edita: la marca se fija en la siembra (RF-003a). *@
+                <td>@(perfil.EsAdministrador ? "Sí" : "No")</td>
+                <td>
+                    <a asp-action="Edit" asp-route-id="@perfil.PerfilId">Modificar</a>
+                    @if (!perfil.EsAdministrador)
+                    {
+                        @* RF-002b: el perfil administrador no puede eliminarse nunca, así que ni
+                           siquiera se ofrece la opción. *@
+                        <a asp-action="Delete" asp-route-id="@perfil.PerfilId">Baja</a>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

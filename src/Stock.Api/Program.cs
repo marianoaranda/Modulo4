@@ -1,5 +1,8 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Stock.Api.Configuration;
+using Stock.Api.Security;
 using Stock.Api.Data;
 using Stock.Api.Data.Seed;
 using Stock.Api.Export;
@@ -35,9 +38,28 @@ public partial class Program
         builder.Services.AddScoped<ArticuloLockRepository>();
         builder.Services.AddScoped<MovimientoService>();
         builder.Services.AddScoped<ArticuloService>();
+        builder.Services.AddSingleton<JwtTokenService>();
+
+        // T101 — Autenticación JWT. `[Authorize]` se aplica a todos los controladores mediante un
+        // filtro global y `AuthController` se exceptúa con `[AllowAnonymous]`: así agregar un
+        // controlador nuevo lo deja protegido por omisión, en vez de depender de que alguien se
+        // acuerde de ponerle el atributo (RF-012).
+        builder.Services
+            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(opcionesJwt =>
+            {
+                var tokens = new JwtTokenService(opciones);
+                opcionesJwt.TokenValidationParameters = tokens.ParametrosDeValidacion();
+            });
+
+        builder.Services.AddScoped<PerfilService>();
+        builder.Services.AddScoped<UsuarioService>();
+
+        builder.Services.AddAuthorization(AuthorizationPolicies.Agregar);
         builder.Services.AddSingleton<ExcelExporter>();
 
-        builder.Services.AddControllers()
+        builder.Services.AddControllers(mvc =>
+            mvc.Filters.Add(new AuthorizeFilter()))
             .AddJsonOptions(json =>
                 // El Tipo de Movimiento viaja como "Compra"/"Venta" según el contrato. Un valor
                 // fuera del conjunto cerrado falla al deserializar y se traduce en un 400
@@ -62,6 +84,9 @@ public partial class Program
         app.UseExceptionHandler();
         app.UseStatusCodePages();
 
+        app.UseAuthentication();
+        app.UseAuthorization();
+
         app.MapControllers();
         app.Run();
     }
@@ -71,7 +96,10 @@ public partial class Program
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<StockDbContext>();
 
+        var opciones = scope.ServiceProvider.GetRequiredService<OpcionesDeArranque>();
+
         db.Database.Migrate();
         DbSeeder.SembrarPerfilesAsync(db).GetAwaiter().GetResult();
+        DbSeeder.SembrarAdministradorAsync(db, opciones.PasswordAdminInicial).GetAwaiter().GetResult();
     }
 }

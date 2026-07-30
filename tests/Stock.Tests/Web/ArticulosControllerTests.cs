@@ -24,7 +24,7 @@ public class ArticulosControllerTests : WebTestBase
     {
         Api.ResponderJson(UnArticuloJson);
 
-        var cliente = NuevoCliente();
+        var cliente = ClienteConSesion();
         var html = await (await cliente.GetAsync("/Articulos")).Content.ReadAsStringAsync();
 
         Assert.Multiple(() =>
@@ -41,7 +41,7 @@ public class ArticulosControllerTests : WebTestBase
         // sugeriría que el valor tipeado va a persistir, cuando el motor lo descarta.
         Api.ResponderJson(ArticuloJson);
 
-        var cliente = NuevoCliente();
+        var cliente = ClienteConSesion();
         var html = await (await cliente.GetAsync("/Articulos/Edit/1")).Content.ReadAsStringAsync();
 
         Assert.Multiple(() =>
@@ -59,7 +59,7 @@ public class ArticulosControllerTests : WebTestBase
         // y el motivo, no a una página de error.
         Api.ResponderProblema(HttpStatusCode.Conflict, "Ya existe un artículo con el código A-001.");
 
-        var cliente = NuevoCliente();
+        var cliente = ClienteConSesion();
 
         var formulario = new FormUrlEncodedContent(new Dictionary<string, string>
         {
@@ -100,7 +100,7 @@ public class ArticulosControllerTests : WebTestBase
                 Content = new StringContent(ArticuloJson, System.Text.Encoding.UTF8, "application/json"),
             });
 
-        var cliente = NuevoCliente();
+        var cliente = ClienteConSesion();
         var respuesta = await cliente.PostAsync("/Articulos/Delete/1", new FormUrlEncodedContent([]));
         var html = await respuesta.Content.ReadAsStringAsync();
 
@@ -112,7 +112,7 @@ public class ArticulosControllerTests : WebTestBase
     {
         Api.ResponderJson(ArticuloJson, HttpStatusCode.Created);
 
-        var cliente = NuevoCliente();
+        var cliente = ClienteConSesion();
 
         var formulario = new FormUrlEncodedContent(new Dictionary<string, string>
         {

@@ -19,7 +19,7 @@ public class MovimientosControllerTests : WebTestBase
         Api.ResponderJson("""{"numero":1,"tipo":"Compra","fecha":"2026-01-15","detalle":[]}""",
             HttpStatusCode.Created);
 
-        var cliente = NuevoCliente();
+        var cliente = ClienteConSesion();
 
         var formulario = new FormUrlEncodedContent(new Dictionary<string, string>
         {
@@ -54,7 +54,7 @@ public class MovimientosControllerTests : WebTestBase
         Api.ResponderProblema(
             HttpStatusCode.UnprocessableEntity, "Stock insuficiente para el artículo A-001.");
 
-        var cliente = NuevoCliente();
+        var cliente = ClienteConSesion();
 
         var formulario = new FormUrlEncodedContent(new Dictionary<string, string>
         {
@@ -82,7 +82,7 @@ public class MovimientosControllerTests : WebTestBase
     {
         Api.ResponderJson("""{"filas":[],"truncado":false}""");
 
-        var cliente = NuevoCliente();
+        var cliente = ClienteConSesion();
         await cliente.GetAsync("/StockActual?codigoDesde=A-001&codigoHasta=A-999&descripcion=valvula");
 
         var url = Api.UltimaSolicitud.RequestUri!.ToString();
@@ -102,7 +102,7 @@ public class MovimientosControllerTests : WebTestBase
         // vistas consumen el mismo recurso compartido.
         Api.ResponderJson("""{"filas":[],"truncado":false}""");
 
-        var cliente = NuevoCliente();
+        var cliente = ClienteConSesion();
         var vacio = await (await cliente.GetAsync("/StockActual?consultar=true")).Content.ReadAsStringAsync();
 
         Api.ResponderJson("""{"filas":[{"codigo":"A-001","descripcion":"X","cantidad":1}],"truncado":true}""");
@@ -132,7 +132,7 @@ public class MovimientosControllerTests : WebTestBase
             },
         });
 
-        var cliente = NuevoCliente();
+        var cliente = ClienteConSesion();
         var respuesta = await cliente.GetAsync("/StockActual/Excel?codigoDesde=A-001");
 
         Assert.Multiple(async () =>

@@ -15,6 +15,18 @@ namespace Stock.Tests.Integration;
 [Category(TestCategories.Integration)]
 public class EsquemaPerfilTests : IntegrationTestBase
 {
+    /// <summary>
+    /// Estos tests verifican el <b>esquema</b>, así que necesitan la tabla vacía: el fixture
+    /// autenticado siembra los tres perfiles base y el usuario admin antes de cada test, y con un
+    /// administrador ya presente no se podría distinguir el índice único filtrado funcionando de
+    /// la siembra estorbando.
+    ///
+    /// Se limpia después de sembrar y no en lugar de sembrar, para no romper el resto del fixture.
+    /// Estos tests no usan <c>Client</c>, así que quedarse sin token no les afecta.
+    /// </summary>
+    protected override Task LimpiarFixtureAsync() =>
+        EjecutarSqlAsync("DELETE FROM dbo.Usuario; DELETE FROM dbo.Perfil;");
+
     [Test]
     public async Task No_puede_haber_dos_perfiles_marcados_como_administrador()
     {

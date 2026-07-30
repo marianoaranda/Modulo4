@@ -27,7 +27,7 @@ public class ConcurrenciaTests : MovimientosTestBase
         await AltaExitosaAsync("Compra", Linea(articulo, 10));
 
         // Cada cliente tiene su propia conexión, como cinco usuarios distintos del comercio.
-        var clientes = Enumerable.Range(0, 5).Select(_ => Factory.CreateClient()).ToList();
+        var clientes = Enumerable.Range(0, 5).Select(_ => ClienteAutenticado()).ToList();
 
         var cuerpo = Cuerpo("Venta", Linea(articulo, 4));
 
@@ -74,8 +74,8 @@ public class ConcurrenciaTests : MovimientosTestBase
 
         await AltaExitosaAsync("Compra", Linea(primero, 10), Linea(segundo, 10));
 
-        using var clienteA = Factory.CreateClient();
-        using var clienteB = Factory.CreateClient();
+        using var clienteA = ClienteAutenticado();
+        using var clienteB = ClienteAutenticado();
 
         var respuestas = await Task.WhenAll(
             clienteA.PostAsJsonAsync(Movimientos, Cuerpo("Venta", Linea(primero, 10))),
@@ -103,7 +103,7 @@ public class ConcurrenciaTests : MovimientosTestBase
 
         var tandas = Enumerable.Range(0, 8).Select(async i =>
         {
-            using var cliente = Factory.CreateClient();
+            using var cliente = ClienteAutenticado();
             return await cliente.PostAsJsonAsync(Movimientos, i % 2 == 0 ? enUnOrden : enElOtro);
         });
 

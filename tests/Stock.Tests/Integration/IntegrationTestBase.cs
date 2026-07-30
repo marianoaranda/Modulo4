@@ -1,9 +1,17 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Security.Claims;
+using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
 using Stock.Api.Data;
+using Stock.Api.Data.Seed;
 
 namespace Stock.Tests.Integration;
 
@@ -75,11 +83,14 @@ public abstract class IntegrationTestBase
                     services.AddLogging(logging => logging.AddProvider(new ProveedorParaNUnit())));
             });
 
-        Client = Factory.CreateClient();
+        await using (var scope = Factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<StockDbContext>();
+            await db.Database.MigrateAsync();
+        }
 
-        await using var scope = Factory.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<StockDbContext>();
-        await db.Database.MigrateAsync();
+        Client = Factory.CreateClient();
+        await SembrarSeguridadYAutenticarAsync();
 
         await PrepararFixtureAsync();
     }
@@ -114,7 +125,118 @@ public abstract class IntegrationTestBase
             DELETE FROM dbo.ErrorLog;
             """);
 
+        // La limpieza se lleva puestos los perfiles y el usuario admin, así que hay que
+        // reponerlos y volver a autenticar antes de cada test.
+        await SembrarSeguridadYAutenticarAsync();
+
         await LimpiarFixtureAsync();
+    }
+
+    /// <summary>
+    /// T100 — Fixture autenticado.
+    ///
+    /// Sirve los perfiles base y el usuario <c>admin</c>, pide un token al propio endpoint de
+    /// login y lo deja puesto en <see cref="Client"/>. Que <see cref="Client"/> venga autenticado
+    /// por omisión es deliberado: cuando T101 aplicó <c>[Authorize]</c> a todos los controladores,
+    /// los tests de US1, US2 y US3 volvieron a verde sin tocar una línea, porque la autenticación
+    /// es una precondición de esos escenarios y no parte de lo que verifican. Los tests que sí
+    /// verifican el acceso usan <see cref="ClienteSinToken"/> explícitamente.
+    /// </summary>
+    private async Task SembrarSeguridadYAutenticarAsync()
+    {
+        await using (var scope = Factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<StockDbContext>();
+
+            await DbSeeder.SembrarPerfilesAsync(db);
+            await DbSeeder.SembrarAdministradorAsync(db, PasswordAdminDePrueba);
+        }
+
+        Token = await ObtenerTokenAsync("admin", PasswordAdminDePrueba);
+
+        Client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", Token);
+    }
+
+    /// <summary>Token del usuario administrador de la corrida.</summary>
+    protected string Token { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Cliente sin credenciales. Lo usan los tests que verifican que sin sesión no se accede a
+    /// nada (RF-012).
+    /// </summary>
+    protected HttpClient ClienteSinToken() => Factory.CreateClient();
+
+    /// <summary>
+    /// Cliente propio con el token de la corrida. Lo usan los tests de concurrencia, donde cada
+    /// operación simultánea representa a un usuario distinto y necesita su propia conexión.
+    /// </summary>
+    protected HttpClient ClienteAutenticado()
+    {
+        var cliente = Factory.CreateClient();
+
+        cliente.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", Token);
+
+        return cliente;
+    }
+
+    /// <summary>Cliente autenticado como otro usuario, para los tests de 403 (RF-010).</summary>
+    protected async Task<HttpClient> ClienteComoAsync(string usuario, string password)
+    {
+        var cliente = Factory.CreateClient();
+
+        cliente.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", await ObtenerTokenAsync(usuario, password));
+
+        return cliente;
+    }
+
+    protected async Task<string> ObtenerTokenAsync(string usuario, string password)
+    {
+        using var sinToken = Factory.CreateClient();
+
+        var respuesta = await sinToken.PostAsJsonAsync(
+            "/api/auth/login", new { usuario, password });
+
+        if (!respuesta.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                $"El login de '{usuario}' falló con {(int)respuesta.StatusCode}: " +
+                await respuesta.Content.ReadAsStringAsync());
+        }
+
+        using var documento = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+
+        return documento.RootElement.GetProperty("token").GetString()!;
+    }
+
+    /// <summary>
+    /// Token con los claims correctos y la firma correcta, pero ya vencido. Verifica que el
+    /// <c>ClockSkew</c> en cero de R-04 hace que la expiración sea exacta.
+    /// </summary>
+    protected string TokenExpirado() => ArmarToken(
+        ClaveDeFirmaDePrueba, expiracion: DateTime.UtcNow.AddMinutes(-1));
+
+    /// <summary>Token bien formado pero firmado con otra clave.</summary>
+    protected string TokenFirmadoCon(string clave) => ArmarToken(
+        clave.PadRight(32, '.'), expiracion: DateTime.UtcNow.AddHours(1));
+
+    private static string ArmarToken(string clave, DateTime expiracion)
+    {
+        var credenciales = new SigningCredentials(
+            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(clave)),
+            SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            issuer: "Stock.Api",
+            audience: "Stock.Web",
+            claims: [new Claim("name", "admin"), new Claim("es_admin", "true")],
+            notBefore: expiracion.AddHours(-8),
+            expires: expiracion,
+            signingCredentials: credenciales);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
     /// <summary>Gancho para que un fixture siembre lo que necesite una sola vez.</summary>

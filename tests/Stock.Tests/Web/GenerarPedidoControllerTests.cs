@@ -50,7 +50,7 @@ public class GenerarPedidoControllerTests : WebTestBase
     {
         Api.ResponderJson(UnaFilaJson);
 
-        var cliente = NuevoCliente();
+        var cliente = ClienteConSesion();
         await cliente.GetAsync("/GenerarPedido?soloBajoMinimo=true&modoPedido=HastaPuntoPedido");
 
         var url = Api.UltimaSolicitud.RequestUri!.ToString();
@@ -68,7 +68,7 @@ public class GenerarPedidoControllerTests : WebTestBase
         // RF-032a / RF-027c: el usuario tiene que enterarse de que está viendo una lista parcial.
         Api.ResponderJson(TruncadoJson);
 
-        var cliente = NuevoCliente();
+        var cliente = ClienteConSesion();
         var html = await (await cliente.GetAsync(
             "/GenerarPedido?soloBajoMinimo=false&modoPedido=HastaStockIdeal")).Content.ReadAsStringAsync();
 
@@ -80,7 +80,7 @@ public class GenerarPedidoControllerTests : WebTestBase
     {
         Api.ResponderJson(UnaFilaJson);
 
-        var cliente = NuevoCliente();
+        var cliente = ClienteConSesion();
         var html = await (await cliente.GetAsync(
             "/GenerarPedido?soloBajoMinimo=false&modoPedido=HastaStockIdeal")).Content.ReadAsStringAsync();
 
@@ -93,7 +93,7 @@ public class GenerarPedidoControllerTests : WebTestBase
         // RF-032: grilla vacía con mensaje informativo, no un error.
         Api.ResponderJson(VacioJson);
 
-        var cliente = NuevoCliente();
+        var cliente = ClienteConSesion();
         var respuesta = await cliente.GetAsync(
             "/GenerarPedido?soloBajoMinimo=true&modoPedido=HastaStockIdeal");
         var html = await respuesta.Content.ReadAsStringAsync();
@@ -112,7 +112,7 @@ public class GenerarPedidoControllerTests : WebTestBase
     {
         Api.ResponderJson(UnaFilaJson);
 
-        var cliente = NuevoCliente();
+        var cliente = ClienteConSesion();
         var html = await (await cliente.GetAsync(
             "/GenerarPedido?soloBajoMinimo=false&modoPedido=HastaStockIdeal")).Content.ReadAsStringAsync();
 
@@ -142,7 +142,7 @@ public class GenerarPedidoControllerTests : WebTestBase
             },
         });
 
-        var cliente = NuevoCliente();
+        var cliente = ClienteConSesion();
         var respuesta = await cliente.GetAsync(
             "/GenerarPedido/Excel?soloBajoMinimo=false&modoPedido=HastaStockIdeal");
 

@@ -1,0 +1,37 @@
+@model List<Stock.Web.Models.UsuarioViewModel>
+@{
+    ViewData["Title"] = "Usuarios";
+}
+
+<h1>Usuarios</h1>
+
+<p><a class="btn btn-primary" asp-action="Create">Nuevo usuario</a></p>
+
+@* Ninguna columna de credenciales: la API no devuelve Hash ni Salt y la pantalla no los
+   necesita (RF-007). *@
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>Nombre de usuario</th>
+            <th>Nombre completo</th>
+            <th>Perfil</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var usuario in Model)
+        {
+            <tr>
+                <td>@usuario.UsuarioId</td>
+                <td>@usuario.NombreUsuario</td>
+                <td>@usuario.NombreCompleto</td>
+                <td>@usuario.PerfilId</td>
+                <td>
+                    <a asp-action="Edit" asp-route-id="@usuario.UsuarioId">Modificar</a>
+                    <a asp-action="Delete" asp-route-id="@usuario.UsuarioId">Baja</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

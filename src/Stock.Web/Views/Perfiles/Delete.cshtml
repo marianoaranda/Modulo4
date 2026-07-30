@@ -1,0 +1,18 @@
+@model Stock.Web.Models.PerfilViewModel
+@{
+    ViewData["Title"] = $"Baja del perfil {Model.Descripcion}";
+}
+
+<h1>Dar de baja el perfil @Model.Descripcion</h1>
+
+@* Dos rechazos previstos con el mismo 409: el perfil tiene usuarios asignados (RF-002a) o es el
+   perfil administrador (RF-002b). El mensaje que redacta la API los distingue. *@
+@if (!string.IsNullOrWhiteSpace(Model.MensajeDeRechazo))
+{
+    <div class="alert alert-warning" role="alert">@Model.MensajeDeRechazo</div>
+}
+
+<form method="post" asp-action="Delete" asp-route-id="@Model.PerfilId">
+    <button type="submit" class="btn btn-danger">Confirmar baja</button>
+    <a class="btn btn-secondary" asp-action="Index">Cancelar</a>
+</form>
