@@ -4,7 +4,14 @@
 
 **Fecha de creación**: 2026-07-24
 
-**Estado**: Aprobado — listo para implementación
+**Estado**: Implementado, con brecha conocida de interfaz.
+
+Los requisitos RF-001 a RF-033 están implementados y verificados. Los requisitos
+**RF-016a, RF-020e, RF-020f y RF-034 a RF-034c** —todos de interfaz de usuario, incorporados el
+2026-07-31 al integrar clarificaciones de la sesión 2026-07-25 que habían quedado sin traducir a
+requisitos— están **especificados pero no implementados**, y por lo tanto no tienen tareas ni
+cobertura de tests todavía. Se los identifica en la lista con la marca *pendiente de
+implementación*.
 
 **Entrada**: Descripción del usuario: "Generá el spec a partir del PRD que está en /PRD.md"
 
@@ -17,6 +24,17 @@
 - Q: ¿Qué pasa al dar de baja un artículo con movimientos o un perfil con usuarios asignados? → A: Baja restringida: la operación se rechaza con un error; no hay baja lógica ni cascada.
 - Q: ¿Cómo se garantiza el stock ≥ 0 si dos usuarios graban ventas del mismo artículo a la vez? → A: Validación y grabación atómicas: una se graba y la otra se rechaza con el error de stock insuficiente.
 - Q: ¿Sobre qué campo se define el "rango de artículos" de la Consulta de Stock Actual y son obligatorios sus extremos? → A: Rango inclusivo sobre el Código con orden alfabético (texto); ambos extremos opcionales, vacío = sin límite por ese lado.
+- Q: ¿Cómo se muestra el precio de venta en la carga de articulos? → A: cuando se esten editando por pantalla los campos de precio de costo o margen, debe verse por pantalla el resultado del precio de venta de manera interactiva. Agregale algo de javascript a la pantalla de articulos para que calcule el precio de venta cuando cambia el precio de costo o el margen.
+- Q: ¿Cómo se obtiene el numero de movimiento? → A: en la carga de movimientos, Sugerime automaticamente el numero de movimmiento correlativo, sin importar si el tipo de movimiento es compra o venta, la numeracion es la misma para todos los tipos de movimiento.
+- Q: ¿Cómo buscan los codigos de articulo? → A: Tanto en la carga de movimientos, como en la consulta de sock actual, y en la generacion de pedidos, al lado de cada textbox que pida un código de articulo, de haber un boton chico que tenga solamente un icono de una lupa, que al presionarlo
+abra un pop up de buequeda, y cuando se elija un registro de la grilla de busqueda se debe trasladar el codigo al texbox. Dicho pop up de busqueda debe pedir un campo descripcion y un boton "buscar", al presionar buscar llena una grilla con scroll vertical, mostrando 2 columnas, el codigo y la descripcion del articulo filtrando los articulos que cumplen con la descripcion ingresada, buscando por contenido usando LIKE, si la descripcion ingresada esta vacia listar todos los articulos en la grilla de la busqueda. cuando el usuario elija un registro de la busqueda y lo acepte, se deben realizar todas las operaciones asociadas al codigo, tal cual, como si el codigo lo hibiese ingresado a mano el usuario. El pop up de busqueda no deberia tener un alto mayor a 600 pixels.
+En cada pantalla que llame a la busqueda se debe mostrar en algun lado la descripcion asociada al codigo de articulo. y obviamente las descripciones se deben mantener actualizadas para que coincidan con lo que representa cada codigo ingresado, cuando el usuario lo cambia manualmente, debe cambiar la descripción
+y cuando el usuario utiliza la busqueda, tambien debe cambiar la descripcion.
+- Q: ¿Cómo se implementa la consulta de articulos? → A: El pop up de busqueda de articulos, se debe implementar aparte, de manera encapsulada, de modo tal que las pantallas que la necesiten, solo tengan que hacer lo minimo para lograr invocar el pop up de busqueda.
+
+### Sesión 2026-07-31
+
+- Q: Las cuatro clarificaciones de la sesión anterior sobre la interfaz (cálculo interactivo del Precio de Venta, sugerencia del Número de Movimiento, popup de búsqueda de artículos y su encapsulamiento) quedaron registradas pero nunca se integraron a Requisitos Funcionales, por lo que no llegaron a la implementación. ¿Qué se hace con ellas? → A: Integrarlas al spec como requisitos formales (RF-016a, RF-020e, RF-020f y RF-034 a RF-034c) sin implementarlas todavía, de modo que la brecha quede documentada y trazable.
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -170,6 +188,10 @@ movimientos que lo satisfacen y RF-028 al final con el registro de errores. El i
 etiqueta estable de trazabilidad, **no una posición**; buscar un RF por su número no debe hacerse por
 orden de aparición.
 
+La marca *pendiente de implementación* señala un requisito acordado y especificado que todavía no se
+construyó. No es una nota de estado transitoria del documento: mientras esté, ese requisito no tiene
+tarea ni test asociado, y el sistema no lo cumple.
+
 ### Requisitos Funcionales
 
 **Perfiles de seguridad**
@@ -204,6 +226,7 @@ orden de aparición.
 - **RF-014a** (RF-14): El sistema DEBE rechazar la baja de un artículo que tenga movimientos asociados, mostrando un error y sin eliminar el registro, de modo que el histórico de movimientos y el Stock Actual derivado se preserven íntegros (baja restringida; no hay baja lógica ni eliminación en cascada).
 - **RF-015** (RF-15): El sistema DEBE permitir modificar los datos de un artículo existente.
 - **RF-016** (RF-16): El sistema DEBE calcular el Precio de Venta como Precio de Costo × (1 + Margen / 100).
+- **RF-016a** (RF-16) — *pendiente de implementación*: El sistema DEBE mostrar el Precio de Venta recalculado **de forma interactiva en la pantalla de artículos**, actualizándolo a medida que el usuario edita el Precio de Costo o el Margen, sin necesidad de grabar ni recargar. El valor mostrado es informativo y NO editable: la fuente de verdad sigue siendo el cálculo de RF-016 en el servidor, de modo que un cliente que no ejecute el recálculo no puede alterar el precio grabado.
 - **RF-017** (RF-17): El sistema DEBE rechazar el alta o modificación de un artículo con Código duplicado (el Código es único).
 - **RF-017a** (RF-17): El sistema DEBE evaluar la unicidad del Código con la misma regla de comparación que su ordenamiento (RF-025a): **insensible a mayúsculas y sensible a acentos**. En consecuencia, `A-001` y `a-001` son el mismo Código y el segundo se rechaza como duplicado, mientras que dos códigos que difieren en un acento son distintos.
 - **RF-018** (RF-18): El sistema DEBE rechazar el alta o modificación si Precio de Costo, Margen, Stock Mínimo, Punto de Pedido o Stock Ideal es negativo, o si alguno de los tres parámetros de reposición incumple el tipo entero que fija RF-013a.
@@ -216,6 +239,8 @@ orden de aparición.
 - **RF-020b** (RF-20): El sistema DEBE admitir para el Tipo de Movimiento exclusivamente los valores **Compra** y **Venta**; una compra suma al Stock Actual y una venta resta.
 - **RF-020c** (RF-20): El sistema DEBE calcular el Precio Total de cada línea de detalle como Cantidad × Precio Unitario; no es un valor cargado por el usuario.
 - **RF-020d** (RF-20): El sistema DEBE rechazar un Movimiento cuya Fecha sea posterior a la fecha actual. El Stock Actual considera todos los movimientos registrados, sin corte ni proyección por fecha.
+- **RF-020e** (RF-20) — *pendiente de implementación*: El sistema DEBE identificar el artículo de cada línea de detalle por su **Código** en toda la interfaz de usuario —carga, edición y visualización—, y NO DEBE exigir al usuario el identificador interno del artículo. Alinea la interfaz con la definición de la entidad "Detalle de movimiento", donde el Código es la identidad de negocio y el identificador es sólo la referencia física.
+- **RF-020f** (RF-20) — *pendiente de implementación*: El sistema DEBE mostrar en la pantalla de carga de un Movimiento nuevo el Número correlativo que le correspondería, en modo **sólo lectura**. Es una sugerencia informativa y no altera RF-020a: el Número definitivo lo asigna la secuencia al grabar, de modo que dos cargas simultáneas no puedan quedarse con el mismo valor por haberlo visto en pantalla.
 - **RF-021** (RF-21): El sistema DEBE permitir dar de baja un Movimiento existente (encabezado y detalle).
 - **RF-022** (RF-22): El sistema DEBE permitir modificar un Movimiento existente (encabezado y detalle).
 - **RF-023** (RF-23): El sistema DEBE rechazar el alta o modificación de un Movimiento con alguna línea cuya Cantidad no sea un número entero mayor que 0.
@@ -248,6 +273,12 @@ orden de aparición.
 - **RF-032** (RF-25/RF-26): El sistema DEBE mostrar una grilla vacía con un mensaje informativo, sin error, cuando la combinación de parámetros no arroja ninguna fila. El texto es exactamente **"No hay artículos que cumplan los criterios de la consulta."**, se muestra en el lugar de la grilla y no se acompaña de ningún indicador de error. Fijarlo acá lo hace verificable: el test asierta esa cadena, no la mera ausencia de filas.
 - **RF-032a** (RF-25/RF-26): El sistema DEBE mostrar, cuando el resultado se recortó por RF-027c, el texto exacto **"Se muestran las primeras 10.000 filas. Acote la búsqueda con el filtro por descripción."**, visible junto a la grilla y distinguible del mensaje de resultado vacío de RF-032. Ambos mensajes son informativos, no errores.
 - **RF-033** (RF-26): El sistema DEBE calcular "Generar Pedido" siempre contra el estado vigente del catálogo y de los movimientos al momento de ejecutar la consulta. El resultado no se persiste ni se versiona: modificar los parámetros de reposición de un artículo se refleja en la siguiente ejecución.
+
+**Búsqueda de artículos por pantalla** *(todo el grupo, pendiente de implementación)*
+- **RF-034** (RF-20/RF-25/RF-26): El sistema DEBE ofrecer, junto a cada campo de texto que pida un Código de artículo —carga de movimientos, Consulta de Stock Actual y Generar Pedido—, un botón pequeño identificado sólo con un ícono de lupa que abra una ventana de búsqueda de artículos.
+- **RF-034a** (RF-20/RF-25/RF-26): La ventana de búsqueda DEBE pedir un campo Descripción y un botón "Buscar" que llene una grilla con desplazamiento vertical de dos columnas —Código y Descripción— con los artículos cuya Descripción contenga el texto ingresado (coincidencia parcial, con la misma regla insensible a mayúsculas y acentos de RF-027a). Una Descripción vacía lista todos los artículos. La altura de la ventana NO DEBE superar los 600 píxeles.
+- **RF-034b** (RF-20/RF-25/RF-26): Al elegir y aceptar un registro de la grilla, el sistema DEBE trasladar su Código al campo de origen y disparar **exactamente las mismas operaciones asociadas** que si el usuario lo hubiera tecleado a mano, sin ninguna ruta de código alternativa. Además, cada pantalla que use el buscador DEBE mostrar la Descripción del artículo correspondiente al Código vigente, y mantenerla sincronizada tanto cuando el Código se elige desde la búsqueda como cuando el usuario lo edita manualmente.
+- **RF-034c** (RF-20/RF-25/RF-26): El buscador DEBE implementarse como un **componente encapsulado e independiente**, de modo que una pantalla que lo necesite sólo deba hacer lo mínimo para invocarlo. Fundamento: son tres pantallas las que lo consumen y RF-034b exige que todas se comporten igual; tres copias del mismo diálogo divergirían y la equivalencia con la carga manual dejaría de sostenerse.
 
 **Registro de errores**
 - **RF-028** (RF-27): El sistema DEBE registrar todo error de ejecución en una bitácora con Identificador (autonumérico), Fecha/Hora, Nombre de la máquina, Mensaje y Detalle de la excepción.

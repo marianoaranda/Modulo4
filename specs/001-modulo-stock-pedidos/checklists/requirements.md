@@ -24,7 +24,7 @@
 
 ## Preparación de la Funcionalidad
 
-- [x] Todos los requisitos funcionales tienen criterios de aceptación claros
+- [ ] Todos los requisitos funcionales tienen criterios de aceptación claros
 - [x] Los escenarios de usuario cubren los flujos principales
 - [x] La funcionalidad cumple los resultados medibles definidos en los Criterios de Éxito
 - [x] Ningún detalle de implementación se filtra en la especificación
