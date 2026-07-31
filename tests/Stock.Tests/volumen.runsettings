@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Corrida SÓLO de los tests de volumen (CE-002, CE-004).
+
+  Hace falta un archivo aparte y no alcanza con pasarle a `dotnet test` el filtro
+  `TestCategory=Volumen`: el `.runsettings` que el csproj fija en `RunSettingsFilePath` ya trae
+  `TestCategory!=Volumen`, y el filtro de la línea de comandos se combina con ese valor mediante
+  AND, no lo reemplaza. El resultado es "(TestCategory!=Volumen)&amp;(TestCategory=Volumen)", que no
+  selecciona ninguna prueba y, lo peor, termina en verde: la corrida de volumen parecería haber
+  pasado sin haber ejecutado nada.
+
+  La opción `settings` sí reemplaza al archivo del csproj, de modo que este filtro queda solo. El
+  comando exacto está en quickstart.md y en AGENTS.md.
+
+  El tiempo máximo de sesión es más generoso que el de la corrida por defecto porque cada fixture
+  siembra 10.000 artículos y 100.000 líneas de detalle antes de cada test.
+-->
+<RunSettings>
+  <RunConfiguration>
+    <TestSessionTimeout>3600000</TestSessionTimeout>
+    <TestCaseFilter>TestCategory=Volumen</TestCaseFilter>
+  </RunConfiguration>
+</RunSettings>

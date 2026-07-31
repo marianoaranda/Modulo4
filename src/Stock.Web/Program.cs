@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Stock.Web.Services;
 
 namespace Stock.Web;
@@ -59,6 +60,16 @@ public partial class Program
             opciones.TextEncoderSettings = new System.Text.Encodings.Web.TextEncoderSettings(
                 System.Text.Unicode.UnicodeRanges.All));
 
+        // Única conexión a base de la capa web: la bitácora de errores (R-08). Sin migraciones
+        // propias — mapea la tabla que ya creó la migración inicial de Stock.Api.
+        var cadenaDeLaBitacora = builder.Configuration.GetConnectionString("StockDb");
+
+        if (!string.IsNullOrWhiteSpace(cadenaDeLaBitacora))
+        {
+            builder.Services.AddDbContext<Stock.Web.Data.ErrorLogDbContext>(o =>
+                o.UseSqlServer(cadenaDeLaBitacora));
+        }
+
         var direccionDeLaApi = builder.Configuration["StockApi:BaseUrl"];
 
         builder.Services.AddTransient<BearerTokenHandler>();
@@ -75,6 +86,13 @@ public partial class Program
 
         app.UseExceptionHandler("/Home/Error");
         app.UseStatusCodePagesWithReExecute("/Home/Error", "?codigo={0}");
+
+        // DESPUÉS de UseExceptionHandler, no antes. En ASP.NET Core el middleware que se registra
+        // después queda más adentro de la cadena, o sea más cerca de donde se lanza la excepción.
+        // Registrado antes quedaría por fuera del manejador, que absorbe la excepción para
+        // renderizar la página de error y no la vuelve a lanzar: la bitácora no vería nunca nada y
+        // CE-008 fallaría en silencio, con la aplicación aparentando funcionar (RF-028).
+        app.UseMiddleware<Stock.Web.Middleware.ExceptionLoggingMiddleware>();
 
         app.UseStaticFiles();
         app.UseRouting();

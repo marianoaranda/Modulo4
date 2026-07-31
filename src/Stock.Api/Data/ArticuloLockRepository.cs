@@ -32,7 +32,13 @@ public class ArticuloLockRepository
     /// usuario como un error de concurrencia que pide reintentar, que es justo lo que RF-024b
     /// prohíbe.
     /// </summary>
-    public async Task BloquearAsync(IEnumerable<int> articuloIds, CancellationToken ct = default)
+    /// <remarks>
+    /// Es <c>virtual</c> para que el test de la bitácora (V-12) pueda sustituirlo por uno que
+    /// falle <b>dentro</b> de la transacción ya abierta. Sin ese punto de sustitución, forzar una
+    /// excepción no controlada en medio de una operación transaccional exigiría un endpoint de
+    /// prueba en el código de producción, que es peor: quedaría expuesto en la aplicación real.
+    /// </remarks>
+    public virtual async Task BloquearAsync(IEnumerable<int> articuloIds, CancellationToken ct = default)
     {
         var ordenados = articuloIds.Distinct().OrderBy(id => id).ToList();
 

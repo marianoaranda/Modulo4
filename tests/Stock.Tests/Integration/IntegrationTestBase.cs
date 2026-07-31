@@ -44,6 +44,28 @@ public abstract class IntegrationTestBase
             "No se encontró SA_PASSWORD. Los tests de integración necesitan el SQL Server de " +
             "`docker compose up -d sqlserver` y el archivo .env de la raíz (ver .env.example).");
 
+    /// <summary>Cadena de conexión hacia una base concreta del servidor de pruebas.</summary>
+    public static string CadenaHacia(string nombreDeBase) =>
+        new SqlConnectionStringBuilder(ServidorDePruebas)
+        {
+            InitialCatalog = nombreDeBase,
+            MultipleActiveResultSets = true,
+        }.ConnectionString;
+
+    /// <summary>
+    /// Aplica el historial completo de migraciones sobre la base indicada. Lo usan también los
+    /// tests de la capa web, que necesitan la tabla <c>ErrorLog</c> creada por esa misma migración.
+    /// </summary>
+    public static async Task MigrarAsync(string cadenaDeConexion)
+    {
+        var options = new DbContextOptionsBuilder<StockDbContext>()
+            .UseSqlServer(cadenaDeConexion)
+            .Options;
+
+        await using var db = new StockDbContext(options);
+        await db.Database.MigrateAsync();
+    }
+
     private string _nombreDeBase = string.Empty;
 
     protected string CadenaDeConexion { get; private set; } = string.Empty;

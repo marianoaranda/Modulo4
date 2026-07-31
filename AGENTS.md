@@ -27,15 +27,22 @@ dotnet restore StockModulo.sln
 # Usuario inicial: admin, con la contraseña definida en SEED_ADMIN_PASSWORD.
 docker compose up -d --build
 
-# Aplicar migraciones de base de datos (necesario sólo fuera de Docker)
-dotnet ef database update --project src/Stock.Api
+# Aplicar migraciones de base de datos (necesario sólo fuera de Docker).
+# El --context es obligatorio: hay dos DbContext y sólo StockDbContext tiene migraciones.
+# ErrorLogDbContext mapea la tabla que crea la migración inicial y no genera esquema propio.
+dotnet ef database update --project src/Stock.Api --context StockDbContext
 
 # Correr Front y Back en local sin Docker (requiere el SQL Server de compose)
 dotnet run --project src/Stock.Api
 dotnet run --project src/Stock.Web
 
-# Correr tests
+# Correr tests (puerta de calidad; el .runsettings excluye la categoría Volumen)
 dotnet test StockModulo.sln
+
+# Tests de volumen (CE-002, CE-004): siembran 10.000 artículos y 100.000 líneas.
+# Va por --settings y NO por --filter: el .runsettings del csproj ya trae
+# TestCategory!=Volumen y --filter se combina con AND, dejando cero pruebas... en verde.
+dotnet test StockModulo.sln --settings tests/Stock.Tests/volumen.runsettings
 ```
 
 ## Qué NO hacer

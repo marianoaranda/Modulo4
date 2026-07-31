@@ -37,7 +37,8 @@ definida en el compose — **no** está hardcodeada en el código (Principio IV)
 Fuera de Docker, contra el SQL Server del compose:
 
 ```powershell
-dotnet ef database update --project src/Stock.Api
+# El --context es obligatorio: hay dos DbContext y sólo StockDbContext tiene migraciones.
+dotnet ef database update --project src/Stock.Api --context StockDbContext
 dotnet run --project src/Stock.Api
 dotnet run --project src/Stock.Web
 ```
@@ -56,8 +57,11 @@ dotnet test StockModulo.sln --filter TestCategory=Unit
 # Sólo integración: requiere el SQL Server de compose levantado
 dotnet test StockModulo.sln --filter TestCategory=Integration
 
-# Test de volumen de CE-002, excluido de la corrida por defecto. Tarda varios minutos.
-dotnet test StockModulo.sln --filter TestCategory=Volumen
+# Tests de volumen de CE-002 y CE-004, excluidos de la corrida por defecto.
+# Va por --settings y NO por --filter: el .runsettings del csproj ya trae
+# TestCategory!=Volumen y --filter se combina con ese valor mediante AND, de modo que
+# `--filter TestCategory=Volumen` no selecciona ninguna prueba y termina en verde.
+dotnet test StockModulo.sln --settings tests/Stock.Tests/volumen.runsettings
 ```
 
 Los tests de integración hospedan las aplicaciones **in-process** con `WebApplicationFactory`; de
@@ -210,7 +214,7 @@ T128.
 | CE-001 | V-1 |
 | CE-002 | V-5 |
 | CE-003 | V-1 |
-| CE-004 | V-4 |
+| CE-004 | V-4 (invariante de stock no negativo), V-5 (latencia con 5 usuarios concurrentes) |
 | CE-005 | V-2, V-3 |
 | CE-006 | V-11 |
 | CE-007 | V-11 |

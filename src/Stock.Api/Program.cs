@@ -6,6 +6,7 @@ using Stock.Api.Security;
 using Stock.Api.Data;
 using Stock.Api.Data.Seed;
 using Stock.Api.Export;
+using Stock.Api.Middleware;
 using Stock.Api.Services;
 
 namespace Stock.Api;
@@ -31,6 +32,11 @@ public partial class Program
         builder.Services.AddSingleton(opciones);
 
         builder.Services.AddDbContext<StockDbContext>(o =>
+            o.UseSqlServer(opciones.CadenaDeConexion));
+
+        // Misma base, conexión propia: es lo que hace que el registro del error sobreviva al
+        // rollback de la transacción que falló (R-08).
+        builder.Services.AddDbContext<ErrorLogDbContext>(o =>
             o.UseSqlServer(opciones.CadenaDeConexion));
 
         builder.Services.AddScoped<GenerarPedidoQueryService>();
@@ -81,7 +87,10 @@ public partial class Program
             AplicarMigracionesYSembrar(app);
         }
 
-        app.UseExceptionHandler();
+        // Primero de la cadena: tiene que ver toda excepción que suba desde cualquier punto
+        // posterior, incluidos los filtros y los controladores (RF-028, CE-008).
+        app.UseMiddleware<ExceptionLoggingMiddleware>();
+
         app.UseStatusCodePages();
 
         app.UseAuthentication();

@@ -50,13 +50,25 @@ public abstract class WebTestBase
                 builder.ConfigureServices(services =>
                 {
                     // Reemplaza el manejador de red del HttpClient tipado por el simulado, de modo
-                    // que el cliente conserve su configuración real (dirección base, y más
-                    // adelante el BearerTokenHandler) pero no salga a la red.
+                    // que el cliente conserve su configuración real (dirección base y el
+                    // BearerTokenHandler) pero no salga a la red.
                     services.AddHttpClient<StockApiClient>(cliente =>
                         cliente.BaseAddress = new Uri("http://api-simulada.local"))
+                        .AddHttpMessageHandler<BearerTokenHandler>()
                         .ConfigurePrimaryHttpMessageHandler(() => Api);
                 });
+
+                ConfigurarAplicacion(builder);
             });
+    }
+
+    /// <summary>
+    /// Gancho para que un fixture agregue configuración propia. Lo usa el test de la bitácora,
+    /// que necesita una cadena de conexión real porque la capa web escribe <c>ErrorLog</c> con su
+    /// propia conexión (R-08).
+    /// </summary>
+    protected virtual void ConfigurarAplicacion(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
+    {
     }
 
     [TearDown]
