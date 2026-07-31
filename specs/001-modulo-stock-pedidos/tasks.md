@@ -185,6 +185,7 @@ el primer momento, sin haber demostrado nada.
 - [X] T069 [US2] Agregar a `tests/Stock.Tests/Integration/ConsultaStockActualTests.cs` el caso del filtro por descripción insensible a mayúsculas y acentos (V-8, RF-027a)
 - [X] T069a [P] [US2] Test de la exportación de la **Consulta de Stock Actual** en `tests/Stock.Tests/Integration/ExportacionStockActualExcelTests.cs`: el `.xlsx` de `GET /api/consultas/stock-actual/excel` replica filas, orden y recorte de la respuesta JSON con el mismo rango y filtro, y un resultado vacío exporta sólo los encabezados. RF-031 exige la réplica exacta en **ambas** exportaciones y hasta ahora sólo se verificaba la de Generar Pedido (RF-031)
 - [X] T070 [P] [US2] Test de contrato del CRUD de `/api/movimientos` en `tests/Stock.Tests/Integration/MovimientosContractTests.cs`, incluido el recorrido completo alta → lectura → modificación → baja
+  - **Nota (auditoría 2026-07-31)**: se completó enviando `articuloId` en la línea de detalle. `contracts/openapi.yaml` y RF-020e especifican `codigo`, así que hoy este test **no verifica el contrato vigente**. T133 lo corrige y T139/T140 lo ponen en verde.
 - [X] T070a [US2] Agregar a `tests/Stock.Tests/Integration/MovimientosContractTests.cs` el rechazo del no entero en el borde: un cuerpo JSON con `"cantidad": 1.5` devuelve **400 `application/problem+json`** identificando el campo, sin grabar nada y sin llegar al validador de dominio. Se asierta el cuerpo del problema, no sólo el código, para distinguirlo del 400 genérico del framework (RF-018a)
 - [X] T071 [P] [US2] Tests de la capa web de movimientos y consulta de stock en `tests/Stock.Tests/Web/MovimientosControllerTests.cs`: alta con varias líneas de detalle y propagación del error 422 a la vista
 
@@ -193,6 +194,7 @@ el primer momento, sin haber demostrado nada.
 - [X] T072 [P] [US2] Implementar `MovimientoValidator` en `src/Stock.Api/Domain/Validation/MovimientoValidator.cs` con los límites concretos de RF-023a y **sin** validación cruzada de precios (RF-023b)
 - [X] T073 [US2] Implementar el bloqueo pesimista en `src/Stock.Api/Data/ArticuloLockRepository.cs`: `SELECT ... WITH (UPDLOCK, HOLDLOCK)` sobre las filas de `Articulo` afectadas, ordenadas por `ArticuloId` ascendente
 - [X] T074 [US2] Implementar `MovimientoService` en `src/Stock.Api/Services/MovimientoService.cs` aplicando el protocolo de escritura completo de [data-model.md](./data-model.md): transacción → bloqueo → leer `vw_StockActual` → validar ≥ 0 en todas las líneas → aplicar → confirmar
+  - **Nota (auditoría 2026-07-31)**: quedó **incompleto** respecto del protocolo que referencia. El paso 2 de [data-model.md](./data-model.md) —resolver el Código de cada línea a su `ArticuloId` dentro de la transacción, abortando con 404 si no existe— no está implementado, porque el servicio recibe el `ArticuloId` ya resuelto. Lo cierra T140.
 - [X] T075 [US2] Implementar el CRUD de `/api/movimientos` en `src/Stock.Api/Controllers/MovimientosController.cs` con el mapeo de códigos 400/404/422 de [contracts/README.md](./contracts/README.md)
 - [X] T076 [US2] Implementar `StockActualQueryService` en `src/Stock.Api/Services/StockActualQueryService.cs` con el mismo pipeline filtrar → ordenar → recortar → marcar, reutilizando `vw_StockActual`
 - [X] T077 [US2] Implementar `GET /api/consultas/stock-actual` y `GET /api/consultas/stock-actual/excel` en `src/Stock.Api/Controllers/ConsultasController.cs` reutilizando el `ExcelExporter` de T054
@@ -323,6 +325,50 @@ el primer momento, sin haber demostrado nada.
 
 ---
 
+## Fase 9: Brecha de interfaz (RF-016a, RF-020e, RF-020f, RF-034 a RF-034c)
+
+**Propósito**: construir los siete requisitos de interfaz que la auditoría del 2026-07-31 incorporó
+al spec y que quedaron marcados *pendiente de implementación*. Ninguno estaba tareado: las Fases 1
+a 8 se cerraron sin ellos, de modo que hasta acá `tasks.md` mostraba 146 tareas en `[X]` mientras
+el spec declaraba una brecha conocida. Esta fase la cierra.
+
+**Dependencias**: toda la fase depende de las Fases 3 a 6 (movimientos, consultas, artículos y
+autenticación ya construidos). No bloquea a nadie: es la última.
+
+**Ciclo rojo→verde con ruptura deliberada**: T133 cambia los casos de `MovimientosContractTests`
+que hoy envían `articuloId` y los deja en rojo hasta T139/T140. Es el mismo patrón de T101/T102 y
+T105b/T105c —romper a propósito tests ya escritos, con tarea asignada para repararlos— y no un
+efecto colateral no planificado.
+
+**Nota sobre la lógica de cliente**: RF-016a y RF-034 son los primeros requisitos con lógica de
+JavaScript. No se introduce un runner de JS: el rojo se produce sobre el **contrato renderizado**
+de la vista, según fija la reevaluación post-Fase 1 de [plan.md](./plan.md).
+
+### Tests de la Fase 9 ⚠️ ESCRIBIR PRIMERO, DEBEN FALLAR
+
+- [ ] T133 Cambiar en `tests/Stock.Tests/Integration/MovimientosContractTests.cs` las líneas de detalle para que envíen `codigo` en vez de `articuloId`, y asertar que ninguna respuesta expone el identificador interno del artículo, según `contracts/openapi.yaml` (RF-020e). Modifica un archivo existente: no lleva `[P]`
+- [ ] T134 [P] Tests de resolución del Código en `tests/Stock.Tests/Integration/MovimientoCodigoTests.cs`: un Código inexistente devuelve **404 `application/problem+json`** identificando el Código ofensor, sin grabar ninguna línea, y `a-001` resuelve al artículo `A-001` por la regla insensible a mayúsculas y sensible a acentos de RF-017a (RF-020e)
+- [ ] T135 Agregar a `tests/Stock.Tests/Integration/MovimientoNumeracionTests.cs` el test de `GET /api/movimientos/proximo-numero`: devuelve el correlativo siguiente, **no consume la secuencia** —dos llamadas seguidas devuelven el mismo valor— y el valor avanza recién después de un alta. Sin este caso, RF-020f podría implementarse con un `IDENTITY` consumido, que contradice RF-020a (RF-020f)
+- [ ] T136 [P] Tests del buscador en `tests/Stock.Tests/Web/BuscadorArticulosTests.cs`: la ventana pide Descripción y "Buscar", la grilla trae las dos columnas Código y Descripción, y una Descripción vacía **no lista sin límite** sino que aplica el tope de 10.000 con el aviso de recorte de RF-032a. La altura declarada no supera los 600 píxeles (RF-034, RF-034a)
+- [ ] T137 Agregar a `tests/Stock.Tests/Web/BuscadorArticulosTests.cs` los casos de RF-034b y RF-034c: cada pantalla con un campo de Código —detalle de movimientos y los dos extremos del rango de Stock Actual— incluye **la misma partial**, con una sola definición del diálogo en todo el proyecto; y la Descripción mostrada se mantiene sincronizada tanto al elegir desde la búsqueda como al editar el Código a mano, por la misma ruta de código
+- [ ] T138 Agregar a `tests/Stock.Tests/Web/ArticulosControllerTests.cs` el caso de RF-016a: las vistas de alta y edición emiten el hook de recálculo sobre Precio de Costo y Margen. El caso de sólo lectura del Precio de Venta ya existe desde T086 y **debe seguir en verde**: es lo que garantiza que el cliente no pueda alterar el precio grabado
+
+### Implementación de la Fase 9
+
+- [ ] T139 Cambiar `LineaRequest.ArticuloId` por `Codigo` (string) y quitar `ArticuloId` de `DetalleResponse` en `src/Stock.Api/Controllers/MovimientosController.cs`. El comentario de RF-018a sigue valiendo para `Cantidad`, que continúa tipada como `int` (RF-020e)
+- [ ] T140 Resolver el Código a `ArticuloId` **dentro de la transacción**, completando el paso 2 del protocolo de escritura de [data-model.md](./data-model.md), y abortar con 404 indicando el Código ofensor si no existe, en `src/Stock.Api/Services/MovimientoService.cs` (RF-020e)
+- [ ] T141 Implementar `GET /api/movimientos/proximo-numero` en `src/Stock.Api/Controllers/MovimientosController.cs` según `contracts/openapi.yaml`, sin consumir la secuencia (RF-020f)
+- [ ] T142 [P] Crear el componente encapsulado del buscador en `src/Stock.Web/Views/Shared/_BuscadorArticulos.cshtml` y `src/Stock.Web/wwwroot/js/buscador-articulos.js`, consumiendo `GET /api/articulos?descripcion=` con su tope de 10.000 y altura máxima de 600 píxeles (RF-034, RF-034a, RF-034c)
+- [ ] T143 Consumir el buscador desde `src/Stock.Web/Views/Movimientos/` y `src/Stock.Web/Views/StockActual/Index.cshtml`, trasladando el Código elegido por **la misma ruta de código** que el tipeo manual y mostrando la Descripción del Código vigente (RF-034b)
+- [ ] T144 Mostrar el Número sugerido en modo sólo lectura en `src/Stock.Web/Views/Movimientos/Create.cshtml`, consumiendo T141 (RF-020f)
+- [ ] T145 [P] Crear `src/Stock.Web/wwwroot/js/articulo-precio.js` y engancharlo en `src/Stock.Web/Views/Articulos/Create.cshtml` y `Edit.cshtml`, recalculando el Precio de Venta al editar Precio de Costo o Margen, sin grabar ni recargar y sin habilitar el campo (RF-016a)
+- [ ] T146 Quitar de `spec.md` las siete marcas *pendiente de implementación* y actualizar el encabezado de Estado, y agregar a [quickstart.md](./quickstart.md) el escenario **V-15**, que recorre el buscador desde sus dos pantallas y verifica la equivalencia con la carga manual
+- [ ] T147 Ejecutar `dotnet test StockModulo.sln` y confirmar que toda la suite vuelve a verde, incluidos los casos que T133 rompió a propósito
+
+**Punto de control**: el spec queda sin requisitos pendientes y `tasks.md` sin brecha silenciosa.
+
+---
+
 ## Dependencias y Orden de Ejecución
 
 ### Dependencias entre fases
@@ -331,6 +377,7 @@ el primer momento, sin haber demostrado nada.
 - **Fundacional (Fase 2)**: depende del Setup — **BLOQUEA todas las historias**
 - **Historias (Fases 3–7)**: todas dependen de la Fase 2
 - **Pulido (Fase 8)**: depende de las historias que se quieran entregar
+- **Brecha de interfaz (Fase 9)**: depende de las Fases 3 a 6; no bloquea a ninguna otra
 
 ### Dentro de la Fase 2 — el ciclo rojo→verde es estrictamente secuencial entre bloques
 

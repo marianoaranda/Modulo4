@@ -72,7 +72,7 @@ El detalle y las alternativas descartadas están en [research.md](./research.md)
 
 | Principio | Estado | Qué cambió en el diseño |
 |-----------|--------|--------------------------|
-| **I. Test-First** | ✅ PASA | R-10 fija la estrategia: `Unit` para la calculadora de pedido, validadores y hashing; `Integration` contra SQL Server real para lo que depende del motor (bloqueos, collations, agregación). Se rechazó InMemory/SQLite justamente porque daría verde falso en los tres puntos de mayor riesgo. El principio se aplica **sin excepción por capa**: (a) el esquema codifica reglas de negocio (`CHECK` de orden de stocks, columnas calculadas, índice único), por lo que `tasks.md` ordena los tests de esas restricciones **antes** que las configuraciones que las implementan; (b) la capa `Stock.Web` tiene su propia carpeta de tests con `WebApplicationFactory`, incluido el `BearerTokenHandler`, que contiene lógica real de manejo del 401. |
+| **I. Test-First** | ✅ PASA | R-10 fija la estrategia: `Unit` para la calculadora de pedido, validadores y hashing; `Integration` contra SQL Server real para lo que depende del motor (bloqueos, collations, agregación). Se rechazó InMemory/SQLite justamente porque daría verde falso en los tres puntos de mayor riesgo. El principio se aplica **sin excepción por capa**: (a) el esquema codifica reglas de negocio (`CHECK` de orden de stocks, columnas calculadas, índice único), por lo que `tasks.md` ordena los tests de esas restricciones **antes** que las configuraciones que las implementan; (b) la capa `Stock.Web` tiene su propia carpeta de tests con `WebApplicationFactory`, incluido el `BearerTokenHandler`, que contiene lógica real de manejo del 401; (c) la lógica de cliente de RF-016a y RF-034 se testea por su **contrato renderizado** —el test asierta que la vista incluye la partial del buscador, declara su campo de destino y referencia el script, y que el Precio de Venta sigue siendo de sólo lectura—, sin introducir un runner de JavaScript. Es lo correcto y no una concesión: RF-016a fija que el valor mostrado es informativo y que el servidor es la fuente de verdad, así que lo que el spec exige verificar es que la pantalla quede cableada y que el cliente no pueda alterar el precio grabado, y ambas cosas son asertables desde `WebApplicationFactory`. |
 | **II. Aislamiento de IA** | ✅ PASA (por vacuidad) | El diseño no introdujo ninguna dependencia de IA. Sin cambios. |
 | **III. Fuente de verdad** | ✅ **REFORZADO** | `vw_StockActual` es el único lugar donde se calcula el saldo, consumido tanto por las consultas como por la validación del invariante. `PrecioVenta` y `PrecioTotal` son columnas calculadas por el motor: no pueden divergir de sus insumos. Se rechazó explícitamente persistir el stock (R-01), que habría creado una segunda fuente de verdad. |
 | **IV. Secretos** | ✅ PASA | R-03 y R-04 detallan la derivación de contraseñas y la firma del token. Que ningún secreto quede en el repositorio no es una afirmación declarativa: tiene mecanismo asignado (`.env` ignorado + `.env.example` con placeholders) y arranque que falla ante una variable ausente. R-04 además desacopla la autorización de la Descripción editable del perfil mediante el claim `es_admin`, para que renombrar un perfil no pueda otorgar ni quitar privilegios. |
@@ -128,6 +128,11 @@ src/
 └── Stock.Web/                     # ASP.NET MVC. Consume la API; sin acceso a base de negocio.
     ├── Controllers/               # Incluye CuentaController (login con cookie HttpOnly)
     ├── Views/                     # ABMs + Consulta de Stock Actual + Generar Pedido + Cuenta/Login
+    │   └── Shared/                # _Layout y _BuscadorArticulos.cshtml: el buscador encapsulado,
+    │                              #   definido una sola vez y consumido por las pantallas que
+    │                              #   piden un Código (RF-034c)
+    ├── wwwroot/js/                # buscador-articulos.js (RF-034) y articulo-precio.js (RF-016a):
+    │                              #   la única lógica de cliente del proyecto
     ├── Models/                    # ViewModels
     ├── Services/                  # HttpClient tipado + DelegatingHandler que adjunta el Bearer
     ├── Middleware/                # ExceptionLoggingMiddleware → ErrorLog (única excepción, ver abajo)
@@ -151,6 +156,7 @@ tests/
     │   ├── GenerarPedidoTests / ConsultaStockActualTests
     │   ├── MovimientoInvarianteTests / MovimientoModificacionTests
     │   ├── MovimientoAtomicidadTests / MovimientoNumeracionTests
+    │   ├── MovimientoCodigoTests      # El Código identifica la línea de detalle (RF-020e)
     │   ├── ConcurrenciaTests          # CE-004: 5 ventas simultáneas
     │   ├── ArticulosTests / UsuariosTests / PerfilesTests / SeguridadTests
     │   ├── UltimoAdministradorTests   # No se puede quedar sin administrador (RF-005a)
@@ -165,6 +171,7 @@ tests/
         ├── GenerarPedidoControllerTests / MovimientosControllerTests
         ├── ArticulosControllerTests / SeguridadControllerTests
         ├── ErrorLogWebTests           # Excepción no controlada del MVC → ErrorLog
+        ├── BuscadorArticulosTests     # El buscador encapsulado, sus consumidores y el tope
         └── BearerTokenHandlerTests    # Adjunta el Bearer, maneja el 401 y exige sesión
 ```
 

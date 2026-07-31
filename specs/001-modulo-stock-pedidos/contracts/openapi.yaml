@@ -205,6 +205,10 @@ paths:
     get:
       tags: [Articulos]
       summary: Listar artículos, con filtro opcional por descripción
+      description: >
+        Devuelve como máximo 10.000 filas ordenadas por Código ascendente. El tope no es opcional:
+        la constitución prohíbe toda consulta sin límite ni filtro. Es el endpoint que consume la
+        ventana de búsqueda de artículos. (RF-027, RF-034a)
       parameters:
         - name: descripcion
           in: query
@@ -323,6 +327,26 @@ paths:
               schema: { $ref: '#/components/schemas/ProblemDetails' }
         '401': { $ref: '#/components/responses/NoAutorizado' }
         '422': { $ref: '#/components/responses/StockInsuficiente' }
+
+  /api/movimientos/proximo-numero:
+    get:
+      tags: [Movimientos]
+      summary: Número correlativo sugerido para el próximo Movimiento (RF-020f)
+      description: >
+        Sugerencia informativa de sólo lectura para la pantalla de carga. No consume la secuencia:
+        dos llamadas seguidas devuelven el mismo valor y el Número definitivo lo asigna el alta
+        (RF-020a), de modo que dos cargas simultáneas no puedan quedarse con el mismo por haberlo
+        visto en pantalla.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  proximoNumero: { type: integer }
+        '401': { $ref: '#/components/responses/NoAutorizado' }
 
   /api/movimientos/{numero}:
     parameters:
