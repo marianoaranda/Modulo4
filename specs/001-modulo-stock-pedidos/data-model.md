@@ -246,11 +246,18 @@ Toda ruta que cree, modifique o elimine movimientos **debe** seguir esta secuenc
 RF-024a, RF-024b y RF-024c, y su corrección depende de que ninguna ruta la evite.
 
 1. Abrir transacción.
-2. `SELECT … FROM Articulo WITH (UPDLOCK, HOLDLOCK) WHERE ArticuloId IN (…) ORDER BY ArticuloId` — bloqueo pesimista en orden ascendente para evitar deadlocks entre movimientos multilínea.
-3. Leer el Stock Actual resultante desde `vw_StockActual`, ya dentro de la transacción.
-4. Validar `StockActual ≥ 0` para **todos** los artículos afectados; si alguno falla, abortar por completo. — RF-024a, RF-024c
-5. Aplicar encabezado y detalle.
-6. Confirmar.
+2. Resolver el **Código** de cada línea a su `ArticuloId`, ya dentro de la transacción; si algún Código no existe, abortar con *no encontrado* indicando cuál. — RF-020e
+3. `SELECT … FROM Articulo WITH (UPDLOCK, HOLDLOCK) WHERE ArticuloId IN (…) ORDER BY ArticuloId` — bloqueo pesimista en orden ascendente para evitar deadlocks entre movimientos multilínea.
+4. Leer el Stock Actual resultante desde `vw_StockActual`, ya dentro de la transacción.
+5. Validar `StockActual ≥ 0` para **todos** los artículos afectados; si alguno falla, abortar por completo. — RF-024a, RF-024c
+6. Aplicar encabezado y detalle.
+7. Confirmar.
+
+El paso 2 es el que traduce la identidad de negocio a la referencia física. Va **dentro** de la
+transacción y **antes** del bloqueo, por dos razones: resolverlo afuera dejaría una ventana en la
+que el artículo puede desaparecer entre la resolución y el `INSERT`, y el orden de bloqueo del paso
+3 debe seguir siendo por `ArticuloId` ascendente —nunca por el orden en que el usuario cargó los
+Códigos—, que es lo único que evita los deadlocks entre movimientos multilínea.
 
 Ante concurrencia, la segunda transacción espera, re-lee el saldo ya actualizado y —si no
 alcanza— falla con *stock insuficiente*, nunca con un error de conflicto que exija reintento

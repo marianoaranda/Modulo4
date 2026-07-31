@@ -608,8 +608,11 @@ components:
     MovimientoDetalle:
       type: object
       properties:
-        articuloId:     { type: integer }
-        codigo:         { type: string, readOnly: true }
+        # El Código es la identidad de negocio de la línea, en la respuesta y en el pedido
+        # (RF-020, RF-020e). El identificador interno del artículo no cruza el borde de la API:
+        # es la referencia física del modelo de datos y exponerlo obligaría al cliente a
+        # conocerlo para operar.
+        codigo:         { type: string }
         cantidad:       { type: integer, minimum: 1, maximum: 1000000 }
         precioUnitario: { type: number, format: double, minimum: 0 }
         precioTotal:    { type: number, format: double, readOnly: true, description: 'Calculado: cantidad × precio unitario. (RF-020c)' }
@@ -625,9 +628,11 @@ components:
           minItems: 1
           items:
             type: object
-            required: [articuloId, cantidad, precioUnitario]
+            required: [codigo, cantidad, precioUnitario]
             properties:
-              articuloId:     { type: integer }
+              # Código y no identificador interno (RF-020e). Un Código inexistente se responde
+              # 404, con la misma regla de comparación insensible a mayúsculas de RF-017a.
+              codigo:         { type: string, maxLength: 50 }
               cantidad:       { type: integer, minimum: 1, maximum: 1000000 }
               precioUnitario: { type: number, format: double, minimum: 0 }
 
