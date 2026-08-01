@@ -8,11 +8,19 @@ public enum TipoMovimientoWeb
     Venta = 2,
 }
 
+/// <summary>Respuesta de <c>/api/movimientos/proximo-numero</c> (RF-020f).</summary>
+public sealed class ProximoNumeroViewModel
+{
+    public int Numero { get; set; }
+}
+
 public sealed class LineaDetalleViewModel
 {
-    [Display(Name = "Artículo")]
-    public int ArticuloId { get; set; }
-
+    /// <summary>
+    /// Identidad de negocio de la línea (RF-020e). El identificador interno del artículo no
+    /// aparece: ni la pantalla lo pide ni la API lo acepta.
+    /// </summary>
+    [Display(Name = "Código")]
     public string? Codigo { get; set; }
 
     public int Cantidad { get; set; }
@@ -33,6 +41,12 @@ public sealed class LineaDetalleViewModel
 public sealed class MovimientoViewModel
 {
     public int Numero { get; set; }
+
+    /// <summary>
+    /// Correlativo que le tocaría a un movimiento nuevo, para mostrarlo en sólo lectura (RF-020f).
+    /// Es <c>null</c> en la edición: ahí el Número ya existe y no hay nada que sugerir.
+    /// </summary>
+    public int? NumeroSugerido { get; set; }
 
     public TipoMovimientoWeb Tipo { get; set; } = TipoMovimientoWeb.Compra;
 

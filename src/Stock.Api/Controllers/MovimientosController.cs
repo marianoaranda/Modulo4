@@ -10,13 +10,17 @@ namespace Stock.Api.Controllers;
 /// <summary>
 /// Línea de detalle de la solicitud.
 ///
-/// <c>Cantidad</c> y <c>ArticuloId</c> son <c>int</c>: es el tipado lo que implementa RF-018a. Un
-/// valor no entero se rechaza al deserializar, en el borde de la solicitud, con un 400 que
-/// identifica el campo — antes de llegar a ninguna regla de negocio y sin grabar nada.
+/// El artículo se identifica por su <c>Codigo</c> y no por el identificador interno (RF-020e): es
+/// la identidad de negocio que el usuario ve y carga, y exigir el identificador obligaría a
+/// conocerlo para operar. Un Código que no esté en el catálogo se responde 404 nombrándolo.
+///
+/// <c>Cantidad</c> es <c>int</c>: es el tipado lo que implementa RF-018a. Un valor no entero se
+/// rechaza al deserializar, en el borde de la solicitud, con un 400 que identifica el campo —
+/// antes de llegar a ninguna regla de negocio y sin grabar nada.
 /// </summary>
 public sealed class LineaRequest
 {
-    public int ArticuloId { get; set; }
+    public string Codigo { get; set; } = string.Empty;
 
     public int Cantidad { get; set; }
 
@@ -32,11 +36,19 @@ public sealed class MovimientoRequest
     public List<LineaRequest> Detalle { get; set; } = [];
 }
 
+/// <summary>
+/// El identificador interno del artículo <b>no</b> forma parte de la respuesta (RF-020e): es la
+/// referencia física del modelo de datos, y exponerlo invitaría a que un cliente lo use para
+/// operar.
+/// </summary>
 public sealed record DetalleResponse(
-    int ArticuloId, string Codigo, int Cantidad, decimal PrecioUnitario, decimal PrecioTotal);
+    string Codigo, int Cantidad, decimal PrecioUnitario, decimal PrecioTotal);
 
 public sealed record MovimientoResponse(
     int Numero, TipoMovimiento Tipo, DateOnly Fecha, IReadOnlyList<DetalleResponse> Detalle);
+
+/// <summary>Número correlativo que le tocaría al próximo movimiento (RF-020f).</summary>
+public sealed record ProximoNumeroResponse(int Numero);
 
 /// <summary>
 /// T075 — CRUD de movimientos (RF-020 a RF-024c).
@@ -62,6 +74,39 @@ public class MovimientosController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<MovimientoResponse>>> Listar(CancellationToken ct) =>
         Ok(await Proyectar(_db.Movimientos.OrderBy(m => m.Numero)).ToListAsync(ct));
+
+    /// <summary>
+    /// T141 — RF-020f: el Número que la pantalla de carga muestra en modo sólo lectura.
+    ///
+    /// <b>No consume la secuencia</b>, y por eso no es un alta encubierta: dos llamadas seguidas
+    /// devuelven el mismo valor y ninguna pantalla abierta quema un Número que nadie usó. El
+    /// definitivo lo sigue asignando el <c>IDENTITY</c> al grabar (RF-020a), de modo que dos
+    /// cargas simultáneas no puedan quedarse con el mismo valor por haberlo visto en pantalla.
+    ///
+    /// No es <c>MAX(Numero) + 1</c>: al dar de baja el último movimiento, el máximo retrocede pero
+    /// la secuencia no, y la sugerencia dejaría de coincidir con lo que el alta siguiente va a
+    /// grabar.
+    ///
+    /// Tampoco alcanza con <c>IDENT_CURRENT</c>: en una tabla sin filas devuelve la semilla, y eso
+    /// no distingue "todavía no se insertó nada" —donde el próximo Número <b>es</b> la semilla— de
+    /// "se insertó exactamente una fila y se borró", donde ya está consumida. <c>last_value</c> de
+    /// <c>sys.identity_columns</c> sí los distingue: es <c>NULL</c> hasta la primera inserción.
+    /// </summary>
+    [HttpGet("proximo-numero")]
+    public async Task<IActionResult> ProximoNumero(CancellationToken ct)
+    {
+        var numero = await _db.Database
+            .SqlQueryRaw<int>("""
+                SELECT CAST(ISNULL(
+                    (SELECT CONVERT(bigint, last_value) FROM sys.identity_columns
+                      WHERE object_id = OBJECT_ID('dbo.Movimiento') AND name = 'Numero')
+                        + IDENT_INCR('dbo.Movimiento'),
+                    IDENT_SEED('dbo.Movimiento')) AS int) AS Value
+                """)
+            .FirstAsync(ct);
+
+        return Ok(new ProximoNumeroResponse(numero));
+    }
 
     [HttpGet("{numero:int}")]
     public async Task<IActionResult> Leer(int numero, CancellationToken ct)
@@ -116,7 +161,6 @@ public class MovimientosController : ControllerBase
             m.Tipo,
             m.Fecha,
             m.Detalle.Select(d => new DetalleResponse(
-                d.ArticuloId,
                 d.Articulo!.Codigo,
                 d.Cantidad,
                 d.PrecioUnitario,
@@ -126,12 +170,17 @@ public class MovimientosController : ControllerBase
         new(solicitud.Tipo,
             solicitud.Fecha,
             solicitud.Detalle
-                .Select(l => new LineaAValidar(l.ArticuloId, l.Cantidad, l.PrecioUnitario))
+                .Select(l => new LineaAValidar(
+                    l.Codigo?.Trim() ?? string.Empty, l.Cantidad, l.PrecioUnitario))
                 .ToList());
 
     private IActionResult Traducir(OperacionMovimiento resultado) => resultado.Fallo switch
     {
-        FalloDeMovimiento.NoEncontrado => NoEncontrado(),
+        // El mensaje viaja desde el servicio porque el 404 tiene dos causas distintas que el
+        // usuario necesita distinguir: el movimiento que no existe y el Código de artículo que no
+        // está en el catálogo, que se nombra para que se sepa cuál de las líneas lo produjo
+        // (RF-020e).
+        FalloDeMovimiento.NoEncontrado => NoEncontrado(resultado.Mensaje),
 
         // 422: sintácticamente válido pero viola un invariante de negocio. Es también la respuesta
         // ante concurrencia perdida, evaluada contra el saldo ya actualizado (RF-024b).
@@ -153,8 +202,8 @@ public class MovimientosController : ControllerBase
         return ValidationProblem(ModelState);
     }
 
-    private IActionResult NoEncontrado() => Problem(
-        detail: "El Movimiento no existe.",
+    private IActionResult NoEncontrado(string? detalle = null) => Problem(
+        detail: detalle ?? "El Movimiento no existe.",
         statusCode: StatusCodes.Status404NotFound,
         title: "No encontrado");
 }

@@ -11,7 +11,9 @@
 <div class="row g-3 mb-3">
     <div class="col-auto">
         <label class="form-label" asp-for="Tipo">Tipo</label>
-        <select class="form-select" asp-for="Tipo"
+        @* El Tipo vigente decide qué precio se sugiere al cargar un Código: el de Costo en una
+           compra, el de Venta en una venta (RF-020g). *@
+        <select class="form-select" asp-for="Tipo" data-tipo-movimiento
                 asp-items="Html.GetEnumSelectList<Stock.Web.Models.TipoMovimientoWeb>()"></select>
     </div>
 
@@ -19,36 +21,85 @@
         <label class="form-label" asp-for="Fecha">Fecha</label>
         <input class="form-control" type="date" asp-for="Fecha" />
     </div>
+
+    @if (Model.NumeroSugerido is not null)
+    {
+        @* RF-020f: el correlativo que le tocaría, en sólo lectura. Es informativo: el definitivo
+           lo asigna la secuencia al grabar, de modo que dos cargas simultáneas no puedan quedarse
+           con el mismo valor por haberlo visto en pantalla (RF-020a). *@
+        <div class="col-auto">
+            <label class="form-label" for="numeroSugerido">Número</label>
+            <input class="form-control" id="numeroSugerido" value="@Model.NumeroSugerido" readonly disabled />
+            <div class="form-text">Lo asigna el sistema al grabar.</div>
+        </div>
+    }
 </div>
 
 <h2 class="h5">Detalle</h2>
 
+@* RF-020e: la línea se identifica por el Código, nunca por el identificador interno. La
+   Descripción del artículo va debajo del Código, dentro de su celda (RF-034b).
+
+   RF-020h: cuatro columnas y en este orden. La Descripción no ocupa una columna propia. *@
 <table class="table" id="detalle">
     <thead>
         <tr>
-            <th>Artículo (Id)</th>
+            <th>Código</th>
             <th>Cantidad</th>
             <th>Precio Unitario</th>
+            <th class="text-end">Precio Total</th>
         </tr>
     </thead>
     <tbody>
         @for (var i = 0; i < Model.Detalle.Count; i++)
         {
+            var idCodigo = $"Detalle_{i}__Codigo";
+
             <tr>
-                <td><input class="form-control" asp-for="Detalle[i].ArticuloId" /></td>
-                <td><input class="form-control" asp-for="Detalle[i].Cantidad" /></td>
-                <td><input class="form-control" asp-for="Detalle[i].PrecioUnitario" /></td>
+                <td>
+                    <div class="input-group">
+                        <input class="form-control" asp-for="Detalle[i].Codigo" id="@idCodigo" data-articulo-codigo />
+                        <partial name="_BotonBuscarArticulo" model="idCodigo" />
+                    </div>
+                    <div class="form-text" data-descripcion-de="@idCodigo"></div>
+                </td>
+                <td><input class="form-control" asp-for="Detalle[i].Cantidad" data-cantidad /></td>
+                <td><input class="form-control" asp-for="Detalle[i].PrecioUnitario" data-precio-unitario /></td>
+                @* RF-020c: el Precio Total lo calcula el sistema; acá se muestra, no se carga. *@
+                <td class="text-end align-middle"><span data-precio-total>@Model.Detalle[i].PrecioTotal</span></td>
             </tr>
         }
         @* Filas en blanco para poder agregar líneas sin JavaScript. Las que queden vacías no se
            envían a la API: son filas del formulario que el usuario nunca completó. *@
         @for (var i = Model.Detalle.Count; i < Model.Detalle.Count + 4; i++)
         {
+            var idCodigo = $"Detalle_{i}__Codigo";
+
             <tr>
-                <td><input class="form-control" name="Detalle[@i].ArticuloId" value="" /></td>
-                <td><input class="form-control" name="Detalle[@i].Cantidad" value="0" /></td>
-                <td><input class="form-control" name="Detalle[@i].PrecioUnitario" value="0" /></td>
+                <td>
+                    <div class="input-group">
+                        <input class="form-control" name="Detalle[@i].Codigo" id="@idCodigo" value="" data-articulo-codigo />
+                        <partial name="_BotonBuscarArticulo" model="idCodigo" />
+                    </div>
+                    <div class="form-text" data-descripcion-de="@idCodigo"></div>
+                </td>
+                <td><input class="form-control" name="Detalle[@i].Cantidad" value="0" data-cantidad /></td>
+                <td><input class="form-control" name="Detalle[@i].PrecioUnitario" value="0" data-precio-unitario /></td>
+                <td class="text-end align-middle"><span data-precio-total>0</span></td>
             </tr>
         }
     </tbody>
+
+    @* RF-020i: suma de la columna Precio Total. Es informativo y derivado del detalle: no se
+       persiste ni viaja como campo del encabezado, así que no puede quedar desfasado de las
+       líneas. *@
+    <tfoot>
+        <tr>
+            <th colspan="3" class="text-end">Total General</th>
+            <th class="text-end"><span data-total-general>0</span></th>
+        </tr>
+    </tfoot>
 </table>
+
+<partial name="_BuscadorArticulos" />
+<script src="~/js/movimiento-detalle.js" asp-append-version="true"></script>

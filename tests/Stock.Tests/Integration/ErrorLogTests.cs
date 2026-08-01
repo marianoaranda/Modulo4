@@ -64,7 +64,7 @@ public class ErrorLogTests : IntegrationTestBase
         {
             tipo = "Compra",
             fecha = "2026-01-15",
-            detalle = new[] { new { articuloId, cantidad = 10, precioUnitario = 5m } },
+            detalle = new[] { new { codigo = "A-001", cantidad = 10, precioUnitario = 5m } },
         });
 
         Assert.Multiple(async () =>
@@ -96,7 +96,7 @@ public class ErrorLogTests : IntegrationTestBase
         {
             tipo = "Compra",
             fecha = "2026-01-15",
-            detalle = new[] { new { articuloId, cantidad = 10, precioUnitario = 5m } },
+            detalle = new[] { new { codigo = "A-001", cantidad = 10, precioUnitario = 5m } },
         });
 
         var maquina = await EscalarAsync<string>("SELECT TOP 1 MachineName FROM dbo.ErrorLog");
@@ -131,7 +131,7 @@ public class ErrorLogTests : IntegrationTestBase
         {
             tipo = "Compra",
             fecha = "2026-01-15",
-            detalle = new[] { new { articuloId, cantidad = 10, precioUnitario = 5m } },
+            detalle = new[] { new { codigo = "A-001", cantidad = 10, precioUnitario = 5m } },
         });
 
         var cuerpo = await respuesta.Content.ReadAsStringAsync();
@@ -159,7 +159,7 @@ public class ErrorLogTests : IntegrationTestBase
         {
             tipo = "Venta",
             fecha = "2026-01-15",
-            detalle = new[] { new { articuloId, cantidad = 10, precioUnitario = 5m } },
+            detalle = new[] { new { codigo = "A-001", cantidad = 10, precioUnitario = 5m } },
         });
 
         Assert.Multiple(async () =>
@@ -179,7 +179,7 @@ public class ErrorLogTests : IntegrationTestBase
         {
             tipo = "Compra",
             fecha = "2026-01-15",
-            detalle = new[] { new { articuloId, cantidad = 0, precioUnitario = 5m } },
+            detalle = new[] { new { codigo = "A-001", cantidad = 0, precioUnitario = 5m } },
         });
 
         // 404: movimiento inexistente.

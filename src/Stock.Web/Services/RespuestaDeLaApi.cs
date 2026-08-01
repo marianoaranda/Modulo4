@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Stock.Web.Services;
 
@@ -15,6 +16,13 @@ public static class RespuestaDeLaApi
     private static readonly JsonSerializerOptions Opciones = new()
     {
         PropertyNameCaseInsensitive = true,
+
+        // La API serializa el Tipo de Movimiento como texto —"Compra" / "Venta"—, que es lo que
+        // fija el contrato y lo que hace legible la respuesta. Sin este convertidor, cualquier
+        // pantalla que lea un movimiento ya grabado (el listado, la edición, la confirmación de
+        // baja) rompe al deserializar. Se descubrió con el test de la pantalla de edición: los
+        // tests anteriores devolvían listas vacías y nunca llegaban a leer un Tipo.
+        Converters = { new JsonStringEnumConverter() },
     };
 
     public static async Task<string> LeerDetalleDelProblemaAsync(

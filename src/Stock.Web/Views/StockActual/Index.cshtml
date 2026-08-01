@@ -11,14 +11,24 @@
 <form method="get" asp-action="Index" class="row g-3 align-items-end mb-4">
     <input type="hidden" name="consultar" value="true" />
 
+    @* Cada extremo del rango es un campo de Código, así que lleva su botón de búsqueda y muestra
+       la Descripción del Código vigente (RF-034, RF-034b). *@
     <div class="col-auto">
         <label class="form-label" for="codigoDesde">Código desde</label>
-        <input class="form-control" id="codigoDesde" name="codigoDesde" value="@Model.CodigoDesde" />
+        <div class="input-group">
+            <input class="form-control" id="codigoDesde" name="codigoDesde" value="@Model.CodigoDesde" data-articulo-codigo />
+            <partial name="_BotonBuscarArticulo" model="@("codigoDesde")" />
+        </div>
+        <div class="form-text" data-descripcion-de="codigoDesde"></div>
     </div>
 
     <div class="col-auto">
         <label class="form-label" for="codigoHasta">Código hasta</label>
-        <input class="form-control" id="codigoHasta" name="codigoHasta" value="@Model.CodigoHasta" />
+        <div class="input-group">
+            <input class="form-control" id="codigoHasta" name="codigoHasta" value="@Model.CodigoHasta" data-articulo-codigo />
+            <partial name="_BotonBuscarArticulo" model="@("codigoHasta")" />
+        </div>
+        <div class="form-text" data-descripcion-de="codigoHasta"></div>
     </div>
 
     <div class="col-auto">
@@ -41,6 +51,10 @@
         </div>
     }
 </form>
+
+@* La misma ventana de búsqueda que usa la carga de movimientos: una sola definición para las dos
+   pantallas (RF-034c). *@
+<partial name="_BuscadorArticulos" />
 
 @* Mismos dos mensajes que Generar Pedido y con el mismo texto: las dos pantallas consumen el
    recurso compartido, así que no pueden divergir (RF-032, RF-032a). *@

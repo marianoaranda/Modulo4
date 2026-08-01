@@ -82,6 +82,94 @@ public class ArticulosContractTests : IntegrationTestBase
         });
     }
 
+    // -------------------------------------------------------------------------------------
+    // T148 — RF-020g: la resolución de un Código puntual, que alimenta la sugerencia de precio.
+    // -------------------------------------------------------------------------------------
+
+    [Test]
+    public async Task El_filtro_por_codigo_devuelve_el_articulo_con_sus_dos_precios()
+    {
+        // La pantalla de carga necesita, para el Código vigente, la Descripción y los dos precios
+        // del catálogo. Salen de una única consulta: dos consultas separadas podrían mostrar un
+        // artículo y sugerir el precio de otro.
+        await Client.PostAsJsonAsync(Recurso, Articulo(codigo: "A-001", descripcion: "Válvula"));
+        await Client.PostAsJsonAsync(Recurso, Articulo(codigo: "A-002", descripcion: "Codo"));
+
+        var respuesta = await Client.GetAsync($"{Recurso}?codigo=A-001");
+        respuesta.EnsureSuccessStatusCode();
+
+        using var documento = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+
+        Assert.That(documento.RootElement.GetArrayLength(), Is.EqualTo(1),
+            "Coincidencia exacta: no devuelve también A-002.");
+
+        var articulo = documento.RootElement[0];
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(articulo.GetProperty("descripcion").GetString(), Is.EqualTo("Válvula"));
+            Assert.That(articulo.GetProperty("precioCosto").GetDecimal(), Is.EqualTo(100m));
+            Assert.That(articulo.GetProperty("precioVenta").GetDecimal(), Is.EqualTo(150m),
+                "El Precio de Venta es el calculado por RF-016, el que se sugiere en una venta.");
+        });
+    }
+
+    [Test]
+    public async Task El_filtro_por_codigo_usa_la_regla_de_comparacion_de_RF_017a()
+    {
+        await Client.PostAsJsonAsync(Recurso, Articulo(codigo: "A-001"));
+        await Client.PostAsJsonAsync(Recurso, Articulo(codigo: "PAÑO-1"));
+
+        var minusculas = await Client.GetAsync($"{Recurso}?codigo=a-001");
+        var sinAcento = await Client.GetAsync($"{Recurso}?codigo=PANO-1");
+
+        using var resueltoMinusculas = JsonDocument.Parse(await minusculas.Content.ReadAsStringAsync());
+        using var resueltoSinAcento = JsonDocument.Parse(await sinAcento.Content.ReadAsStringAsync());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(resueltoMinusculas.RootElement.GetArrayLength(), Is.EqualTo(1),
+                "Insensible a mayúsculas: `a-001` resuelve `A-001`.");
+            Assert.That(resueltoSinAcento.RootElement.GetArrayLength(), Is.Zero,
+                "Sensible a acentos: `PANO-1` no resuelve `PAÑO-1`.");
+        });
+    }
+
+    [Test]
+    public async Task Un_codigo_inexistente_devuelve_200_con_arreglo_vacio_y_no_404()
+    {
+        // Para la pantalla de carga, un Código que no existe significa "no hay sugerencia", que no
+        // es un error (RF-020g). El 404 aparece recién al grabar el movimiento (RF-020e).
+        var respuesta = await Client.GetAsync($"{Recurso}?codigo=NO-EXISTE");
+
+        using var documento = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(respuesta.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(documento.RootElement.GetArrayLength(), Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task El_codigo_y_la_descripcion_se_combinan_sin_contradecirse()
+    {
+        await Client.PostAsJsonAsync(Recurso, Articulo(codigo: "A-001", descripcion: "Válvula"));
+
+        var coinciden = await Client.GetAsync($"{Recurso}?codigo=A-001&descripcion=álvu");
+        var noCoinciden = await Client.GetAsync($"{Recurso}?codigo=A-001&descripcion=zzz");
+
+        using var conCoincidencia = JsonDocument.Parse(await coinciden.Content.ReadAsStringAsync());
+        using var sinCoincidencia = JsonDocument.Parse(await noCoinciden.Content.ReadAsStringAsync());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(conCoincidencia.RootElement.GetArrayLength(), Is.EqualTo(1));
+            Assert.That(sinCoincidencia.RootElement.GetArrayLength(), Is.Zero,
+                "Los dos filtros se acumulan: no hay uno que gane sobre el otro.");
+        });
+    }
+
     [Test]
     public async Task Leer_modificar_o_dar_de_baja_un_articulo_inexistente_devuelve_404()
     {

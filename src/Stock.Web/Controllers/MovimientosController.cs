@@ -29,11 +29,29 @@ public class MovimientosController : Controller
     }
 
     [HttpGet]
-    public IActionResult Create() => View(new MovimientoViewModel
+    public async Task<IActionResult> Create(CancellationToken ct) => View(new MovimientoViewModel
     {
         // Una línea vacía para que el formulario tenga por dónde empezar.
         Detalle = [new LineaDetalleViewModel()],
+
+        // RF-020f: sugerencia informativa. Si la API no contesta, la pantalla se abre igual sin
+        // el Número: es un dato de comodidad y no una condición para poder cargar.
+        NumeroSugerido = await ProximoNumeroAsync(ct),
     });
+
+    private async Task<int?> ProximoNumeroAsync(CancellationToken ct)
+    {
+        var respuesta = await _api.Http.GetAsync($"{Recurso}/proximo-numero", ct);
+
+        if (!respuesta.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        var proximo = await RespuestaDeLaApi.LeerAsync<ProximoNumeroViewModel>(respuesta, ct);
+
+        return proximo?.Numero;
+    }
 
     [HttpPost]
     public async Task<IActionResult> Create(MovimientoViewModel vista, CancellationToken ct)
@@ -129,10 +147,10 @@ public class MovimientosController : Controller
         detalle = vista.Detalle
             // Las líneas que el usuario dejó en blanco no se envían: son filas del formulario que
             // nunca completó, no líneas con cantidad 0 que la API deba rechazar.
-            .Where(l => l.ArticuloId > 0)
+            .Where(l => !string.IsNullOrWhiteSpace(l.Codigo))
             .Select(l => new
             {
-                articuloId = l.ArticuloId,
+                codigo = l.Codigo!.Trim(),
                 cantidad = l.Cantidad,
                 precioUnitario = l.PrecioUnitario,
             })

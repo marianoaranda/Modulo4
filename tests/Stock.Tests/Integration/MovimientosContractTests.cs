@@ -39,13 +39,21 @@ public class MovimientosContractTests : MovimientosTestBase
         Assert.That(lectura.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         using var leido = JsonDocument.Parse(await lectura.Content.ReadAsStringAsync());
+        var detalleLeido = leido.RootElement.GetProperty("detalle")[0];
+
         Assert.Multiple(() =>
         {
             Assert.That(leido.RootElement.GetProperty("numero").GetInt32(), Is.EqualTo(numero));
             Assert.That(
-                leido.RootElement.GetProperty("detalle")[0].GetProperty("codigo").GetString(),
+                detalleLeido.GetProperty("codigo").GetString(),
                 Is.EqualTo("A-001"),
                 "El detalle expone el Código, que es la identidad de negocio que ve el usuario.");
+
+            // RF-020e: el identificador interno no cruza el borde de la API. Exponerlo obligaría a
+            // quien carga un movimiento a conocerlo, que es justo lo que el requisito prohíbe.
+            Assert.That(
+                detalleLeido.TryGetProperty("articuloId", out _), Is.False,
+                "La respuesta no expone el identificador interno del artículo.");
         });
 
         // Modificación.
@@ -97,13 +105,17 @@ public class MovimientosContractTests : MovimientosTestBase
     }
 
     [Test]
-    public async Task Un_articulo_inexistente_en_el_detalle_devuelve_400()
+    public async Task Un_codigo_inexistente_en_el_detalle_devuelve_404_sin_grabar()
     {
-        var respuesta = await AltaAsync("Compra", Linea(articuloId: 999_999, cantidad: 1));
+        // RF-020e: el Código es la identidad de negocio de la línea y su ausencia del catálogo es
+        // un "no encontrado", no un error de forma de la solicitud. Los casos finos —el Código
+        // ofensor en el cuerpo, la comparación insensible a mayúsculas— viven en
+        // MovimientoCodigoTests; acá se fija el contrato.
+        var respuesta = await AltaAsync("Compra", LineaDeCodigo("NO-EXISTE", cantidad: 1));
 
         Assert.Multiple(async () =>
         {
-            Assert.That(respuesta.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(respuesta.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
             Assert.That(await CantidadDeMovimientosAsync(), Is.Zero);
         });
     }
@@ -121,11 +133,11 @@ public class MovimientosContractTests : MovimientosTestBase
         // Se asierta el CUERPO del problema y no sólo el código, para distinguir este rechazo del
         // 400 genérico del framework: sin esa distinción, el test pasaría igual si el no entero se
         // truncara silenciosamente a 1 y fallara después por otro motivo.
-        var articulo = await SembrarArticuloAsync("A-001");
+        await SembrarArticuloAsync("A-001");
 
-        var cuerpo = $$"""
+        var cuerpo = """
             {"tipo":"Compra","fecha":"2026-01-15",
-             "detalle":[{"articuloId":{{articulo}},"cantidad":1.5,"precioUnitario":10.00}]}
+             "detalle":[{"codigo":"A-001","cantidad":1.5,"precioUnitario":10.00}]}
             """;
 
         var respuesta = await Client.PostAsync(
@@ -145,30 +157,21 @@ public class MovimientosContractTests : MovimientosTestBase
         });
     }
 
-    [Test]
-    public async Task Un_articuloId_no_entero_tambien_devuelve_400()
-    {
-        var cuerpo = """
-            {"tipo":"Compra","fecha":"2026-01-15",
-             "detalle":[{"articuloId":1.7,"cantidad":1,"precioUnitario":10.00}]}
-            """;
-
-        var respuesta = await Client.PostAsync(
-            Movimientos, new StringContent(cuerpo, Encoding.UTF8, "application/json"));
-
-        Assert.That(respuesta.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-    }
+    // El caso "articuloId no entero" se retiró en T133: RF-020e sacó el identificador interno del
+    // contrato, así que el campo ya no existe y el test verificaría el tipado de algo que nadie
+    // envía. El rechazo del no entero sigue cubierto por los dos casos de `cantidad`, que es el
+    // campo que RF-018a realmente protege.
 
     [Test]
     public async Task Una_cantidad_entera_expresada_como_decimal_exacto_tambien_se_rechaza()
     {
         // "2.0" es matemáticamente entero pero sintácticamente decimal. Aceptarlo obligaría al
         // borde a razonar sobre el valor y no sobre el tipo, que es justo lo que RF-018a evita.
-        var articulo = await SembrarArticuloAsync("A-001");
+        await SembrarArticuloAsync("A-001");
 
-        var cuerpo = $$"""
+        var cuerpo = """
             {"tipo":"Compra","fecha":"2026-01-15",
-             "detalle":[{"articuloId":{{articulo}},"cantidad":2.0,"precioUnitario":10.00}]}
+             "detalle":[{"codigo":"A-001","cantidad":2.0,"precioUnitario":10.00}]}
             """;
 
         var respuesta = await Client.PostAsync(

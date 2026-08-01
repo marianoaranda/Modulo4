@@ -205,6 +205,38 @@ haber usado ningún campo de "stock inicial". Confirma que RF-029 se satisface p
 el CRUD de movimientos y que no hace falta código adicional — que es exactamente lo que documenta
 T128.
 
+### V-15 — La búsqueda de artículos, desde sus dos pantallas (RF-034 a RF-034c, RF-020e, RF-020f)
+
+Con al menos dos artículos en el catálogo, uno de ellos `A-001`:
+
+1. Abrir **Movimientos → Nuevo**. Verificar que el campo **Número** muestra el correlativo siguiente y no se puede editar; anotarlo.
+2. En la primera línea del detalle, tipear `a-001` a mano y salir del campo → debajo del Código aparece la Descripción de `A-001`. La resolución es insensible a mayúsculas (RF-017a).
+3. Borrar el Código → la Descripción desaparece. Tipear `Z-999` (inexistente) → la Descripción queda vacía y **no** se muestra ningún error todavía.
+4. Presionar el botón de la **lupa** junto al campo. En la ventana, dejar la Descripción vacía y presionar **Buscar** → se listan artículos con las columnas Código y Descripción. Con más de 10.000, aparece el aviso de recorte.
+5. Elegir `A-001` de la grilla → el Código queda en el campo y la Descripción se actualiza **igual que al tipearlo**: es la misma ruta, no una alternativa.
+6. Completar Cantidad y Precio Unitario, y grabar → el Número asignado coincide con el que mostraba el paso 1 (si nadie más grabó en el medio).
+7. Intentar un alta con el Código `Z-999` → la API responde **404** nombrando `Z-999` y no se graba ninguna línea del movimiento.
+8. Abrir **Consulta de Stock Actual** y repetir los pasos 4 y 5 sobre **Código desde** → la ventana y su comportamiento son idénticos a los de la carga de movimientos.
+
+**Resultado esperado**: las dos pantallas ofrecen la misma ventana —una sola definición en el
+proyecto— y el Código elegido dispara exactamente las mismas operaciones que el tecleado. El
+identificador interno del artículo no aparece en ningún momento.
+
+### V-16 — Carga asistida del detalle: precio sugerido y totales (RF-020g a RF-020i)
+
+Con el artículo `A-001` en el catálogo, Precio de Costo 100 y Margen 50 (Precio de Venta 150):
+
+1. Abrir **Movimientos → Nuevo** con Tipo **Compra**. Cargar `A-001` en la primera línea → el Precio Unitario se completa con **100**, el Precio de Costo.
+2. Cambiar el Tipo a **Venta** → el Precio Unitario **no cambia**: la sugerencia no pisa lo que ya está cargado. Volver a ingresar el Código `A-001` → ahora se sugiere **150**, el Precio de Venta.
+3. Reemplazar el Precio Unitario por **123.45** a mano y poner Cantidad 2 → el Precio Total de la línea muestra **246.90** y el **Total General** lo acompaña.
+4. Cargar una segunda línea con `A-001`, Cantidad 1 → el Total General pasa a **370.35**, la suma de la columna Precio Total.
+5. Grabar y volver a abrir el movimiento → el Precio Unitario grabado es **123.45**, el que se tecleó, y **no** se re-sugiere el del catálogo.
+6. En una línea nueva, tipear un Código inexistente → no hay sugerencia, el Precio Unitario queda como estaba y la Descripción se muestra vacía, sin error.
+
+**Resultado esperado**: la sugerencia acelera la carga sin decidir nada — lo que se graba es siempre
+lo que quedó en el campo (RF-023b)— y los dos totales son derivados: se recalculan en pantalla y no
+se persisten.
+
 ---
 
 ## Mapa de cobertura

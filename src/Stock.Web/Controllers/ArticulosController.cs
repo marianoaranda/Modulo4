@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc;
 using Stock.Web.Models;
+using Stock.Web.Resources;
 using Stock.Web.Services;
 
 namespace Stock.Web.Controllers;
@@ -20,16 +21,66 @@ public class ArticulosController : Controller
     [HttpGet]
     public async Task<IActionResult> Index(string? descripcion, CancellationToken ct)
     {
-        var respuesta = await _api.Http.GetAsync(
-            $"{Recurso}?descripcion={Uri.EscapeDataString(descripcion ?? string.Empty)}", ct);
-
-        respuesta.EnsureSuccessStatusCode();
-
-        var articulos = await RespuestaDeLaApi.LeerAsync<List<ArticuloViewModel>>(respuesta, ct);
+        var articulos = await ListarAsync(descripcion, codigo: null, ct);
 
         ViewData["Descripcion"] = descripcion;
 
-        return View(articulos ?? []);
+        return View(articulos);
+    }
+
+    /// <summary>
+    /// Única lectura del listado de artículos: la comparten la pantalla y la puerta JSON del
+    /// buscador, de modo que las dos vean exactamente el mismo conjunto y el mismo tope.
+    /// </summary>
+    private async Task<List<ArticuloViewModel>> ListarAsync(
+        string? descripcion, string? codigo, CancellationToken ct)
+    {
+        var respuesta = await _api.Http.GetAsync(
+            $"{Recurso}?descripcion={Uri.EscapeDataString(descripcion ?? string.Empty)}" +
+            $"&codigo={Uri.EscapeDataString(codigo ?? string.Empty)}", ct);
+
+        respuesta.EnsureSuccessStatusCode();
+
+        return await RespuestaDeLaApi.LeerAsync<List<ArticuloViewModel>>(respuesta, ct) ?? [];
+    }
+
+    /// <summary>
+    /// T141a — La puerta JSON del buscador de artículos (RF-034a).
+    ///
+    /// Existe porque el script del navegador <b>no puede</b> consumir <c>Stock.Api</c>: el JWT vive
+    /// en un claim de la cookie de sesión y lo adjunta <c>BearerTokenHandler</c> a las llamadas
+    /// salientes del servidor. Mandarlo al navegador para que llamara directo sería la
+    /// alternativa, y expondría al cliente una credencial que hoy nunca sale de acá.
+    ///
+    /// Devuelve sólo Código y Descripción —lo que la grilla muestra— y el aviso de recorte ya
+    /// resuelto, con el texto exacto de RF-032a: dejar que el script lo arme sería una segunda
+    /// copia de una cadena que el spec fija al carácter.
+    /// </summary>
+    /// <remarks>
+    /// El parámetro <c>codigo</c> resuelve un Código puntual y devuelve, además de la Descripción,
+    /// los dos precios del catálogo: es la <b>única consulta por Código</b> de la pantalla de
+    /// movimientos (RF-020g), la misma que sincroniza la Descripción de RF-034b. Dos consultas
+    /// separadas podrían mostrar un artículo y sugerir el precio de otro.
+    /// </remarks>
+    [HttpGet]
+    public async Task<IActionResult> Buscar(string? descripcion, string? codigo, CancellationToken ct)
+    {
+        var articulos = await ListarAsync(descripcion, codigo, ct);
+
+        var truncado = articulos.Count >= LimitesDeConsulta.TopeDeFilas;
+
+        return Json(new
+        {
+            filas = articulos.Select(a => new
+            {
+                codigo = a.Codigo,
+                descripcion = a.Descripcion,
+                precioCosto = a.PrecioCosto,
+                precioVenta = a.PrecioVenta,
+            }),
+            truncado,
+            aviso = truncado ? MensajesDeConsulta.ResultadoRecortado : null,
+        });
     }
 
     [HttpGet]

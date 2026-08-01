@@ -20,23 +20,29 @@
 <div class="row g-3 mt-1">
     <div class="col-md-3">
         <label class="form-label" asp-for="PrecioCosto"></label>
-        <input class="form-control" asp-for="PrecioCosto" type="number" step="0.01" />
+        <input class="form-control" asp-for="PrecioCosto" type="number" step="0.01" data-precio-costo />
     </div>
 
     <div class="col-md-3">
         <label class="form-label" asp-for="Margen"></label>
-        <input class="form-control" asp-for="Margen" type="number" step="0.01" />
+        <input class="form-control" asp-for="Margen" type="number" step="0.01" data-margen />
     </div>
 
     <div class="col-md-3">
         @* RF-016: lo calcula el sistema como Costo × (1 + Margen / 100). Se muestra pero no se
            edita ni se envía: un campo editable sugeriría que el valor tipeado va a persistir,
-           cuando el motor lo descarta. *@
+           cuando el motor lo descarta.
+
+           RF-016a: además se recalcula en pantalla mientras se editan el costo o el margen. Sigue
+           siendo de sólo lectura: lo que se ve es una previsualización de lo que el servidor va a
+           calcular, no un valor que el cliente pueda imponer. *@
         <label class="form-label" asp-for="PrecioVenta"></label>
-        <input class="form-control" asp-for="PrecioVenta" readonly disabled />
+        <input class="form-control" asp-for="PrecioVenta" readonly disabled data-precio-venta />
         <div class="form-text">Calculado por el sistema a partir del costo y el margen.</div>
     </div>
 </div>
+
+<script src="~/js/articulo-precio.js" asp-append-version="true"></script>
 
 <div class="row g-3 mt-1">
     @* RF-013a: los tres son enteros no negativos, y debe cumplirse

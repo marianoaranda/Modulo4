@@ -181,7 +181,7 @@ public class ArticulosTests : IntegrationTestBase
         {
             tipo = "Compra",
             fecha = "2026-01-15",
-            detalle = new[] { new { articuloId = id, cantidad = 10, precioUnitario = 5m } },
+            detalle = new[] { new { codigo = "A-001", cantidad = 10, precioUnitario = 5m } },
         });
 
         var respuesta = await Client.DeleteAsync($"{Recurso}/{id}");

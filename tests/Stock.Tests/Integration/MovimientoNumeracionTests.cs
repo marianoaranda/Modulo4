@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace Stock.Tests.Integration;
 
@@ -46,6 +47,86 @@ public class MovimientoNumeracionTests : MovimientosTestBase
         var segundo = await AltaExitosaAsync("Compra", Linea(articulo, 10));
 
         Assert.That(segundo, Is.GreaterThan(primero));
+    }
+
+    // -------------------------------------------------------------------------------------
+    // T135 — RF-020f: el Número que la pantalla muestra antes de grabar.
+    // -------------------------------------------------------------------------------------
+
+    [Test]
+    public async Task El_proximo_numero_no_consume_la_secuencia()
+    {
+        // Es la propiedad que distingue una sugerencia de una reserva. Si el endpoint consumiera
+        // el IDENTITY, dos llamadas seguidas darían valores distintos y cada pantalla abierta
+        // quemaría un Número que nadie usó — y la sugerencia dejaría de coincidir con lo grabado.
+        var articulo = await SembrarArticuloAsync("A-001");
+        await AltaExitosaAsync("Compra", Linea(articulo, 1));
+
+        var primera = await ProximoNumeroAsync();
+        var segunda = await ProximoNumeroAsync();
+
+        Assert.That(primera, Is.EqualTo(segunda),
+            "Dos consultas seguidas devuelven el mismo valor: no se consume la secuencia.");
+    }
+
+    [Test]
+    public async Task El_proximo_numero_es_el_que_recibe_el_movimiento_siguiente()
+    {
+        var articulo = await SembrarArticuloAsync("A-001");
+        await AltaExitosaAsync("Compra", Linea(articulo, 1));
+
+        var sugerido = await ProximoNumeroAsync();
+        var asignado = await AltaExitosaAsync("Compra", Linea(articulo, 1));
+
+        Assert.That(asignado, Is.EqualTo(sugerido),
+            "Lo que la pantalla mostró es lo que la secuencia terminó asignando.");
+    }
+
+    [Test]
+    public async Task El_proximo_numero_avanza_recien_despues_de_un_alta()
+    {
+        var articulo = await SembrarArticuloAsync("A-001");
+
+        var antes = await ProximoNumeroAsync();
+        await AltaExitosaAsync("Compra", Linea(articulo, 1));
+        var despues = await ProximoNumeroAsync();
+
+        Assert.That(despues, Is.GreaterThan(antes));
+    }
+
+    [Test]
+    public async Task El_proximo_numero_no_repite_el_de_un_movimiento_que_se_dio_de_baja()
+    {
+        // El caso que rompe cualquier cálculo basado en las filas que hay: la secuencia arranca de
+        // cero, se graba un único movimiento y se lo borra. La tabla queda vacía, pero el Número 1
+        // ya está consumido y el próximo alta va a recibir el 2 (RF-020a: no se reutiliza).
+        //
+        // Se descubrió probando la API contra una base recién levantada, no en la suite: acá los
+        // tests anteriores dejaban la secuencia bien por encima de la semilla y tapaban el caso.
+        await EjecutarSqlAsync("DBCC CHECKIDENT('dbo.Movimiento', RESEED, 0) WITH NO_INFOMSGS;");
+
+        var articulo = await SembrarArticuloAsync("A-001");
+        var unico = await AltaExitosaAsync("Compra", Linea(articulo, 1));
+        await BajaAsync(unico);
+
+        var sugerido = await ProximoNumeroAsync();
+        var asignado = await AltaExitosaAsync("Compra", Linea(articulo, 1));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(sugerido, Is.EqualTo(asignado));
+            Assert.That(sugerido, Is.GreaterThan(unico), "No reutiliza el Número dado de baja.");
+        });
+    }
+
+    private async Task<int> ProximoNumeroAsync()
+    {
+        var respuesta = await Client.GetAsync($"{Movimientos}/proximo-numero");
+        respuesta.EnsureSuccessStatusCode();
+
+        using var documento = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+
+        return documento.RootElement.GetProperty("numero").GetInt32();
     }
 
     [Test]

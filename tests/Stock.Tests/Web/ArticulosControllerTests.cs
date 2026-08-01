@@ -53,6 +53,42 @@ public class ArticulosControllerTests : WebTestBase
     }
 
     [Test]
+    public async Task Las_vistas_de_alta_y_edicion_recalculan_el_precio_de_venta_al_editar()
+    {
+        // T138 — RF-016a. El campo sigue siendo de sólo lectura (lo garantiza el caso de T086, que
+        // debe seguir en verde): lo que se agrega es que el valor mostrado acompañe lo que el
+        // usuario está tipeando, sin grabar ni recargar. Se asierta el cableado —los dos campos
+        // que disparan el recálculo y el script que lo hace— porque eso es lo que la vista puede
+        // prometer; que el número final sea el correcto lo sigue decidiendo el servidor (RF-016).
+        Api.ResponderJson(ArticuloJson);
+
+        var cliente = ClienteConSesion();
+
+        var alta = await (await cliente.GetAsync("/Articulos/Create")).Content.ReadAsStringAsync();
+        var edicion = await (await cliente.GetAsync("/Articulos/Edit/1")).Content.ReadAsStringAsync();
+
+        foreach (var html in new[] { alta, edicion })
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    BuscadorArticulosTests.EtiquetaConId(html, "PrecioCosto"),
+                    Does.Contain("data-precio-costo"),
+                    "El Precio de Costo dispara el recálculo.");
+                Assert.That(
+                    BuscadorArticulosTests.EtiquetaConId(html, "Margen"),
+                    Does.Contain("data-margen"),
+                    "El Margen también.");
+                Assert.That(
+                    BuscadorArticulosTests.EtiquetaConId(html, "PrecioVenta"),
+                    Does.Contain("data-precio-venta"),
+                    "Y el Precio de Venta es el destino del cálculo.");
+                Assert.That(html, Does.Contain("articulo-precio.js"));
+            });
+        }
+    }
+
+    [Test]
     public async Task Un_409_de_codigo_duplicado_se_propaga_a_la_vista()
     {
         // RF-017: es un rechazo previsto. El usuario tiene que volver al formulario con sus datos

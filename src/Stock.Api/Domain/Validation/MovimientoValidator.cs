@@ -8,11 +8,13 @@ public sealed record ErrorDeValidacion(string Campo, string Mensaje);
 /// <summary>
 /// Una línea tal como llega a la validación: la <c>Cantidad</c> ya es <c>int</c>.
 ///
-/// Nótese que <b>no incluye el artículo</b>, sólo su identificador. Es deliberado: RF-023b prohíbe
+/// Nótese que <b>no incluye el artículo</b>, sólo su Código. Es deliberado: RF-023b prohíbe
 /// validar el Precio Unitario contra el Precio de Costo o el de Venta del catálogo, y la forma más
-/// fuerte de garantizarlo es que el validador no tenga acceso a esos datos.
+/// fuerte de garantizarlo es que el validador no tenga acceso a esos datos. El Código es la
+/// identidad de negocio de la línea (RF-020e) y se resuelve a su identificador interno recién en
+/// el servicio, dentro de la transacción.
 /// </summary>
-public sealed record LineaAValidar(int ArticuloId, int Cantidad, decimal PrecioUnitario);
+public sealed record LineaAValidar(string Codigo, int Cantidad, decimal PrecioUnitario);
 
 public sealed record MovimientoAValidar(
     TipoMovimiento Tipo, DateOnly Fecha, IReadOnlyList<LineaAValidar> Detalle);

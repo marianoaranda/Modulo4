@@ -23,7 +23,7 @@ public class MovimientoValidatorTests
         params LineaAValidar[] detalle) =>
         new(tipo,
             fecha ?? Hoy,
-            detalle.Length > 0 ? detalle : [new LineaAValidar(ArticuloId: 1, Cantidad: 1, PrecioUnitario: 10m)]);
+            detalle.Length > 0 ? detalle : [new LineaAValidar(Codigo: "A-001", Cantidad: 1, PrecioUnitario: 10m)]);
 
     private static IReadOnlyList<ErrorDeValidacion> Validar(MovimientoAValidar movimiento) =>
         MovimientoValidator.Validar(movimiento, Hoy);
@@ -40,16 +40,16 @@ public class MovimientoValidatorTests
     [TestCase(-1)]
     [TestCase(-1000)]
     public void Cantidad_menor_o_igual_a_cero_se_rechaza(int cantidad) =>
-        Assert.That(Validar(Movimiento(detalle: new LineaAValidar(1, cantidad, 10m))), Is.Not.Empty);
+        Assert.That(Validar(Movimiento(detalle: new LineaAValidar("A-001", cantidad, 10m))), Is.Not.Empty);
 
     [Test]
     public void Cantidad_por_encima_de_un_millon_se_rechaza() =>
-        Assert.That(Validar(Movimiento(detalle: new LineaAValidar(1, 1_000_001, 1m))), Is.Not.Empty);
+        Assert.That(Validar(Movimiento(detalle: new LineaAValidar("A-001", 1_000_001, 1m))), Is.Not.Empty);
 
     [Test]
     public void Cantidad_de_exactamente_un_millon_se_acepta() =>
         // El tope de RF-023a es inclusive: "mayor a 1.000.000" es lo que se rechaza.
-        Assert.That(Validar(Movimiento(detalle: new LineaAValidar(1, 1_000_000, 1m))), Is.Empty);
+        Assert.That(Validar(Movimiento(detalle: new LineaAValidar("A-001", 1_000_000, 1m))), Is.Empty);
 
     // --------------------------------------------------------------------------------------
     // Precio Unitario — RF-023a y RF-023c.
@@ -58,20 +58,20 @@ public class MovimientoValidatorTests
     [Test]
     public void Precio_unitario_negativo_se_rechaza() =>
         // RF-023c: fija el extremo inferior que RF-023a dejaba abierto.
-        Assert.That(Validar(Movimiento(detalle: new LineaAValidar(1, 1, -0.01m))), Is.Not.Empty);
+        Assert.That(Validar(Movimiento(detalle: new LineaAValidar("A-001", 1, -0.01m))), Is.Not.Empty);
 
     [Test]
     public void Precio_unitario_cero_se_acepta() =>
         // Una bonificación es una operación real con precio 0.
-        Assert.That(Validar(Movimiento(detalle: new LineaAValidar(1, 1, 0m))), Is.Empty);
+        Assert.That(Validar(Movimiento(detalle: new LineaAValidar("A-001", 1, 0m))), Is.Empty);
 
     [Test]
     public void Precio_unitario_por_encima_del_tope_se_rechaza() =>
-        Assert.That(Validar(Movimiento(detalle: new LineaAValidar(1, 1, 10_000_000m))), Is.Not.Empty);
+        Assert.That(Validar(Movimiento(detalle: new LineaAValidar("A-001", 1, 10_000_000m))), Is.Not.Empty);
 
     [Test]
     public void Precio_unitario_de_exactamente_el_tope_se_acepta() =>
-        Assert.That(Validar(Movimiento(detalle: new LineaAValidar(1, 1, 9_999_999.99m))), Is.Empty);
+        Assert.That(Validar(Movimiento(detalle: new LineaAValidar("A-001", 1, 9_999_999.99m))), Is.Empty);
 
     // --------------------------------------------------------------------------------------
     // Precio Total — RF-023a, tercer límite.
@@ -82,14 +82,14 @@ public class MovimientoValidatorTests
     {
         // 1.000.000 × 9.999.999,99 ≈ 10^13, por encima de 999.999.999.999,99. Cada factor está
         // dentro de su propio límite: el tope del producto es una regla aparte, no un corolario.
-        var linea = new LineaAValidar(1, 1_000_000, 9_999_999.99m);
+        var linea = new LineaAValidar("A-001", 1_000_000, 9_999_999.99m);
 
         Assert.That(Validar(Movimiento(detalle: linea)), Is.Not.Empty);
     }
 
     [Test]
     public void Precio_total_dentro_del_tope_se_acepta() =>
-        Assert.That(Validar(Movimiento(detalle: new LineaAValidar(1, 100, 1_000m))), Is.Empty);
+        Assert.That(Validar(Movimiento(detalle: new LineaAValidar("A-001", 100, 1_000m))), Is.Empty);
 
     // --------------------------------------------------------------------------------------
     // Encabezado — RF-020b y RF-020d.
@@ -133,8 +133,8 @@ public class MovimientoValidatorTests
         //
         // El validador ni siquiera recibe el artículo: la ausencia de esa dependencia es la forma
         // más fuerte de garantizar que la validación cruzada no puede colarse.
-        var muyPorDebajo = new LineaAValidar(ArticuloId: 1, Cantidad: 5, PrecioUnitario: 0.01m);
-        var muyPorEncima = new LineaAValidar(ArticuloId: 1, Cantidad: 5, PrecioUnitario: 999_999m);
+        var muyPorDebajo = new LineaAValidar(Codigo: "A-001", Cantidad: 5, PrecioUnitario: 0.01m);
+        var muyPorEncima = new LineaAValidar(Codigo: "A-001", Cantidad: 5, PrecioUnitario: 999_999m);
 
         Assert.Multiple(() =>
         {
@@ -148,8 +148,8 @@ public class MovimientoValidatorTests
     {
         var movimiento = Movimiento(detalle:
         [
-            new LineaAValidar(1, 0, 10m),
-            new LineaAValidar(2, 5, -1m),
+            new LineaAValidar("A-001", 0, 10m),
+            new LineaAValidar("A-002", 5, -1m),
         ]);
 
         Assert.That(Validar(movimiento), Has.Count.GreaterThanOrEqualTo(2));

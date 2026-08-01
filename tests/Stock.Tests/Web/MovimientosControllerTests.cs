@@ -25,10 +25,10 @@ public class MovimientosControllerTests : WebTestBase
         {
             ["Tipo"] = "Compra",
             ["Fecha"] = "2026-01-15",
-            ["Detalle[0].ArticuloId"] = "1",
+            ["Detalle[0].Codigo"] = "A-001",
             ["Detalle[0].Cantidad"] = "10",
             ["Detalle[0].PrecioUnitario"] = "12.50",
-            ["Detalle[1].ArticuloId"] = "2",
+            ["Detalle[1].Codigo"] = "A-002",
             ["Detalle[1].Cantidad"] = "5",
             ["Detalle[1].PrecioUnitario"] = "7.25",
         });
@@ -42,6 +42,11 @@ public class MovimientosControllerTests : WebTestBase
             Assert.That(Api.UltimaSolicitud.Method, Is.EqualTo(HttpMethod.Post));
             Assert.That(enviado, Does.Contain("\"cantidad\":10"));
             Assert.That(enviado, Does.Contain("\"cantidad\":5"));
+
+            // RF-020e: la pantalla manda el Código, no el identificador interno. Es la misma
+            // solicitud que arma el usuario tecleando y la que arma el buscador al elegir.
+            Assert.That(enviado, Does.Contain("\"codigo\":\"A-001\""));
+            Assert.That(enviado, Does.Not.Contain("articuloId"));
         });
     }
 

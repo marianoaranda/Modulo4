@@ -214,6 +214,19 @@ paths:
           in: query
           schema: { type: string }
           description: Coincidencia parcial, insensible a mayúsculas y acentos. (RF-027a)
+        - name: codigo
+          in: query
+          schema: { type: string }
+          description: >
+            Coincidencia **exacta**, con la misma regla de comparación que la unicidad del Código:
+            insensible a mayúsculas y sensible a acentos (RF-017a). Devuelve un arreglo de 0 ó 1
+            elementos; un Código inexistente responde **200 con arreglo vacío y no 404**, porque
+            para la pantalla de carga eso significa "no hay sugerencia" y no un error (RF-020g). El
+            404 por Código inexistente es el de RF-020e, al grabar el movimiento.
+
+            Es la resolución por Código que consume la pantalla de movimientos —una sola consulta
+            para la Descripción y los dos precios— y se combina con `descripcion` sin reemplazarla:
+            los dos filtros se acumulan.
       responses:
         '200':
           description: OK

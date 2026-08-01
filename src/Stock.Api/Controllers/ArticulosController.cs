@@ -59,9 +59,24 @@ public class ArticulosController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> Listar([FromQuery] string? descripcion, CancellationToken ct)
+    public async Task<IActionResult> Listar(
+        [FromQuery] string? descripcion, [FromQuery] string? codigo, CancellationToken ct)
     {
         var consulta = _db.Articulos.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(codigo))
+        {
+            // Coincidencia exacta, con la misma regla que la unicidad del Código: insensible a
+            // mayúsculas y sensible a acentos (RF-017a). La aporta la collation de la columna, no
+            // código propio, de modo que la búsqueda y la unicidad no puedan divergir.
+            //
+            // Un Código que no existe devuelve un arreglo vacío y no un 404: para la pantalla de
+            // carga eso significa "no hay sugerencia", que no es un error (RF-020g). El 404 sigue
+            // siendo el de RF-020e, al grabar el movimiento.
+            var buscado = codigo.Trim();
+
+            consulta = consulta.Where(a => a.Codigo == buscado);
+        }
 
         if (!string.IsNullOrWhiteSpace(descripcion))
         {

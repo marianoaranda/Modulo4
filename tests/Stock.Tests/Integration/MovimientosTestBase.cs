@@ -12,7 +12,20 @@ public abstract class MovimientosTestBase : IntegrationTestBase
 {
     protected const string Movimientos = "/api/movimientos";
 
-    protected async Task<int> SembrarArticuloAsync(
+    /// <summary>
+    /// Un artículo sembrado, con sus dos identidades.
+    ///
+    /// El <b>Código</b> es lo que viaja en la línea de detalle (RF-020e) y el identificador interno
+    /// queda para las consultas de saldo del test, que sí miran el modelo físico. La conversión
+    /// implícita a <c>int</c> existe para eso: <c>StockDeAsync(articulo)</c> sigue leyéndose igual,
+    /// mientras que <c>Linea(articulo, …)</c> arma la solicitud con el Código.
+    /// </summary>
+    protected sealed record ArticuloSembrado(int Id, string Codigo)
+    {
+        public static implicit operator int(ArticuloSembrado articulo) => articulo.Id;
+    }
+
+    protected async Task<ArticuloSembrado> SembrarArticuloAsync(
         string codigo, string descripcion = "Artículo de prueba")
     {
         await EjecutarSqlAsync($"""
@@ -21,11 +34,23 @@ public abstract class MovimientosTestBase : IntegrationTestBase
             VALUES ('{codigo}', N'{descripcion}', 100.00, 50, 0, 0, 0);
             """);
 
-        return await EscalarAsync<int>($"SELECT ArticuloId FROM dbo.Articulo WHERE Codigo = '{codigo}'");
+        var id = await EscalarAsync<int>(
+            $"SELECT ArticuloId FROM dbo.Articulo WHERE Codigo = '{codigo}'");
+
+        return new ArticuloSembrado(id, codigo);
     }
 
-    protected static object Linea(int articuloId, int cantidad, decimal precioUnitario = 10m) =>
-        new { articuloId, cantidad, precioUnitario };
+    /// <summary>
+    /// La línea de detalle identifica el artículo por su <b>Código</b>, nunca por el identificador
+    /// interno (RF-020e). No hay sobrecarga que acepte un <c>int</c> a propósito: si la hubiera,
+    /// una llamada vieja compilaría y armaría una solicitud que ya no corresponde al contrato.
+    /// </summary>
+    protected static object Linea(ArticuloSembrado articulo, int cantidad, decimal precioUnitario = 10m) =>
+        LineaDeCodigo(articulo.Codigo, cantidad, precioUnitario);
+
+    /// <summary>Línea con un Código arbitrario, para los casos que no siembran el artículo.</summary>
+    protected static object LineaDeCodigo(string codigo, int cantidad, decimal precioUnitario = 10m) =>
+        new { codigo, cantidad, precioUnitario };
 
     protected static object Cuerpo(string tipo, params object[] detalle) =>
         new { tipo, fecha = "2026-01-15", detalle };

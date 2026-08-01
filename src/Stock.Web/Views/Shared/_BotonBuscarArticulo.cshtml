@@ -1,0 +1,16 @@
+@model string
+
+@*
+    Botón que abre el buscador para un campo de Código (RF-034).
+
+    El modelo es el `id` del campo de destino: eso es todo lo que una pantalla declara para usar el
+    buscador (RF-034c). Va como partial propia y no repetido en cada vista porque el ícono, el
+    rótulo accesible y el atributo que el script observa tienen que ser los mismos en las dos
+    pantallas que lo usan.
+
+    El botón se identifica **sólo con el ícono de lupa**: no lleva texto. El nombre accesible lo
+    aporta `aria-label`, para que "sólo un ícono" no signifique "sin nombre" para quien navega con
+    lector de pantalla.
+*@
+<button type="button" class="btn btn-outline-secondary" data-buscador-destino="@Model"
+        aria-label="Buscar artículo" title="Buscar artículo"><svg class="icono-lupa" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.44.58.98 1.12l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a7 7 0 0 0-1.12-.98zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" /></svg></button>

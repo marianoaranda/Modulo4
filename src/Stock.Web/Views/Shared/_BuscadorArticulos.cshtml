@@ -1,0 +1,65 @@
+@using Stock.Web.Resources
+
+@*
+    T142 — Buscador de artículos (RF-034, RF-034a, RF-034c).
+
+    Componente encapsulado: la pantalla que lo necesita incluye esta partial una sola vez y, junto
+    a cada campo de Código, un botón con `data-buscador-destino` apuntando al id de ese campo. Nada
+    más. Ni el marcado del diálogo ni el script se repiten en las vistas: son dos las pantallas que
+    lo consumen y RF-034b exige que se comporten igual, así que dos copias divergirían en el primer
+    arreglo que alguien hiciera sobre una sola.
+
+    Los delimitadores de abajo hacen comparable el bloque renderizado: el test asierta que las dos
+    pantallas rinden exactamente el mismo diálogo. Van como comentarios HTML y no de Razor porque
+    tienen que llegar a la página: un comentario de Razor se descarta al compilar la vista.
+*@
+
+<!-- buscador-articulos:inicio -->
+<div class="modal fade" id="buscadorArticulos" tabindex="-1" aria-hidden="true"
+     aria-labelledby="buscadorArticulosTitulo">
+    <div class="modal-dialog modal-dialog-centered">
+        @* RF-034a: la ventana no supera los 600 píxeles de alto. *@
+        <div class="modal-content" style="max-height: 600px">
+            <div class="modal-header">
+                <h5 class="modal-title" id="buscadorArticulosTitulo">Búsqueda de artículos</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="row g-2 align-items-end mb-3">
+                    <div class="col">
+                        <label class="form-label" for="buscadorArticulosDescripcion">Descripción</label>
+                        <input class="form-control" id="buscadorArticulosDescripcion" />
+                    </div>
+
+                    <div class="col-auto">
+                        <button type="button" class="btn btn-primary" id="buscadorArticulosBuscar">Buscar</button>
+                    </div>
+                </div>
+
+                @* El aviso de recorte llega resuelto desde el servidor con el texto exacto de
+                   RF-032a; el script sólo lo muestra. Una descripción vacía no libera del tope de
+                   10.000 (RF-034a). *@
+                <div class="alert alert-info d-none" role="status" id="buscadorArticulosAviso">
+                    @MensajesDeConsulta.ResultadoRecortado
+                </div>
+
+                @* Grilla con desplazamiento vertical, dentro de la altura de la ventana. *@
+                <div style="max-height: 380px; overflow-y: auto">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Descripción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="buscadorArticulosResultados"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="~/js/buscador-articulos.js" asp-append-version="true"></script>
+<!-- buscador-articulos:fin -->
