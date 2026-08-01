@@ -362,8 +362,55 @@ de la vista, según fija la reevaluación post-Fase 1 de [plan.md](./plan.md).
 - [ ] T143 Consumir el buscador desde `src/Stock.Web/Views/Movimientos/` y `src/Stock.Web/Views/StockActual/Index.cshtml`, trasladando el Código elegido por **la misma ruta de código** que el tipeo manual y mostrando la Descripción del Código vigente (RF-034b)
 - [ ] T144 Mostrar el Número sugerido en modo sólo lectura en `src/Stock.Web/Views/Movimientos/Create.cshtml`, consumiendo T141 (RF-020f)
 - [ ] T145 [P] Crear `src/Stock.Web/wwwroot/js/articulo-precio.js` y engancharlo en `src/Stock.Web/Views/Articulos/Create.cshtml` y `Edit.cshtml`, recalculando el Precio de Venta al editar Precio de Costo o Margen, sin grabar ni recargar y sin habilitar el campo (RF-016a)
-- [ ] T146 Quitar de `spec.md` las siete marcas *pendiente de implementación* y actualizar el encabezado de Estado, y agregar a [quickstart.md](./quickstart.md) el escenario **V-15**, que recorre el buscador desde sus dos pantallas y verifica la equivalencia con la carga manual
+- [ ] T146 Quitar de `spec.md` las siete marcas *pendiente de implementación* de RF-016a, RF-020e, RF-020f y RF-034 a RF-034c, y actualizar el encabezado de Estado dejando declarada la brecha que sigue abierta (las tres marcas de RF-020g a RF-020i las quita T155, en la Fase 10), y agregar a [quickstart.md](./quickstart.md) el escenario **V-15**, que recorre el buscador desde sus dos pantallas y verifica la equivalencia con la carga manual
 - [ ] T147 Ejecutar `dotnet test StockModulo.sln` y confirmar que toda la suite vuelve a verde, incluidos los casos que T133 rompió a propósito
+
+**Punto de control**: la brecha del 2026-07-31 queda cerrada y `tasks.md` sin tareas silenciosas para ella.
+
+---
+
+## Fase 10: Carga asistida del detalle de movimientos (RF-020g, RF-020h, RF-020i)
+
+**Propósito**: construir los tres requisitos de interfaz que la clarificación del 2026-08-01 incorporó
+al spec —sugerencia del Precio Unitario según el Tipo, grilla de detalle de cuatro columnas con la
+Descripción debajo del Código, y Total General—, todos marcados *pendiente de implementación*.
+
+**Dependencias**: depende por completo de la **Fase 9**, y no es una preferencia de orden sino una
+condición de corrección:
+
+- RF-020g sugiere el precio al establecerse el **Código** de la línea. Hasta T139/T143 el detalle se
+  carga por `ArticuloId`, así que no hay un Código sobre el cual disparar la sugerencia.
+- RF-020g exige que la sugerencia salga por **la misma ruta de código** que usa el buscador de
+  RF-034b (T143). Si se construyera antes, esa ruta única todavía no existe y habría que escribir
+  una segunda, que es exactamente lo que RF-034c prohíbe.
+- RF-020h ubica la Descripción **debajo del Código**; la Descripción sincronizada la introduce T143.
+
+**Nota sobre la lógica de cliente**: vale la misma regla de la Fase 9. No se introduce un runner de
+JS: el rojo se produce sobre el **contrato renderizado** de la vista —qué columnas emite, qué datos
+del artículo expone para la sugerencia, qué rótulo lleva el total— y sobre el contrato de la API que
+alimenta la sugerencia, que sí se testea de punta a punta.
+
+**Una consulta por Código, no dos**: RF-020g pide resolver Descripción, Precio de Costo y Precio de
+Venta con una única consulta. T151/T152 la agregan como filtro exacto `codigo` sobre el
+`GET /api/articulos` que ya existe, en vez de un endpoint nuevo: el Código es texto y puede traer
+caracteres que no viajan bien en un segmento de ruta, y el tope de 10.000 de RF-027 ya rige ahí.
+Un Código inexistente devuelve **arreglo vacío con 200**, no 404: para la pantalla es "no hay
+sugerencia", no un error (RF-020g); el 404 sigue siendo el de RF-020e, al grabar.
+
+### Tests de la Fase 10 ⚠️ ESCRIBIR PRIMERO, DEBEN FALLAR
+
+- [ ] T148 Agregar a `tests/Stock.Tests/Integration/ArticulosContractTests.cs` los casos del filtro exacto `GET /api/articulos?codigo=`: devuelve el único artículo de ese Código con su Descripción, Precio de Costo y Precio de Venta; `a-001` resuelve `A-001` por la regla insensible a mayúsculas y sensible a acentos de RF-017a; un Código inexistente devuelve `200` con arreglo vacío; y `codigo` y `descripcion` combinados no se contradicen. Modifica un archivo existente: no lleva `[P]` (RF-020g)
+- [ ] T149 [P] Tests del contrato renderizado de la sugerencia en `tests/Stock.Tests/Web/MovimientoDetalleAsistidoTests.cs`: la vista del detalle expone, por línea, el Tipo vigente del movimiento y el punto de enganche del script de sugerencia; declara **un solo** origen de datos del artículo (el mismo que consume el buscador de T143, sin una segunda ruta); y al abrir un movimiento existente para editarlo **no** emite ninguna marca de re-sugerencia sobre las líneas ya grabadas (RF-020g)
+- [ ] T150 Agregar a `tests/Stock.Tests/Web/MovimientoDetalleAsistidoTests.cs` los casos de la grilla y el total: el encabezado del detalle trae exactamente cuatro columnas en el orden **Código, Cantidad, Precio Unitario, Precio Total**; la Descripción se emite **dentro de la celda del Código**, debajo de él y no como quinta columna; el Precio Total de la línea se renderiza como no editable; y existe un total rotulado exactamente **"Total General"**, que vale 0 con el detalle vacío. Agrega casos al archivo que crea T149: no lleva `[P]` (RF-020h, RF-020i)
+
+### Implementación de la Fase 10
+
+- [ ] T151 Documentar en `specs/001-modulo-stock-pedidos/contracts/openapi.yaml` el parámetro de consulta `codigo` de `GET /api/articulos` —coincidencia **exacta** con la regla de RF-017a, arreglo de 0 ó 1 elementos, sin 404— y dejar asentado que es la única resolución de Código que consume la pantalla de movimientos (RF-020g)
+- [ ] T152 Implementar el filtro exacto por `codigo` en `src/Stock.Api/Controllers/ArticulosController.cs` y su servicio, reusando la comparación de RF-017a que ya sostiene la unicidad del Código, sin duplicar la regla de comparación (RF-020g)
+- [ ] T153 [P] Crear `src/Stock.Web/wwwroot/js/movimiento-detalle.js`: al establecerse o cambiar el Código de una línea, consultar T152 y completar el Precio Unitario con el Precio de Costo si el Tipo es Compra y con el Precio de Venta si es Venta, dejándolo **editable**; no re-sugerir al cambiar el Tipo con líneas ya cargadas; no sugerir nada si el Código no existe (y vaciar la Descripción); y recalcular el Precio Total de la línea y el Total General ante cualquier cambio de Cantidad, Precio Unitario, Código, alta o baja de línea (RF-020g, RF-020h, RF-020i)
+- [ ] T154 Rehacer la grilla de `src/Stock.Web/Views/Movimientos/_Formulario.cshtml` con las cuatro columnas de RF-020h, la Descripción debajo del Código dentro de su celda, el Precio Total no editable y la fila de **"Total General"**, y enganchar `movimiento-detalle.js` en `Create.cshtml` y `Edit.cshtml`. El evento de cambio de Código que dispara la sugerencia es **el mismo** que T143 usa para sincronizar la Descripción: se agrega un suscriptor, no una segunda ruta (RF-020g, RF-020h, RF-020i, RF-034b)
+- [ ] T155 Quitar de `spec.md` las tres marcas *pendiente de implementación* de RF-020g a RF-020i y dejar el encabezado de Estado sin brecha declarada, y agregar a [quickstart.md](./quickstart.md) el escenario **V-16**: cargar una compra y una venta del mismo artículo verificando que el precio sugerido es el de costo y el de venta respectivamente, que reemplazarlo a mano graba el valor tecleado (RF-023b) y que el Total General coincide con la suma de los Precios Totales
+- [ ] T156 Ejecutar `dotnet test StockModulo.sln` y confirmar que toda la suite queda en verde
 
 **Punto de control**: el spec queda sin requisitos pendientes y `tasks.md` sin brecha silenciosa.
 
@@ -377,7 +424,8 @@ de la vista, según fija la reevaluación post-Fase 1 de [plan.md](./plan.md).
 - **Fundacional (Fase 2)**: depende del Setup — **BLOQUEA todas las historias**
 - **Historias (Fases 3–7)**: todas dependen de la Fase 2
 - **Pulido (Fase 8)**: depende de las historias que se quieran entregar
-- **Brecha de interfaz (Fase 9)**: depende de las Fases 3 a 6; no bloquea a ninguna otra
+- **Brecha de interfaz (Fase 9)**: depende de las Fases 3 a 6; bloquea a la Fase 10
+- **Carga asistida del detalle (Fase 10)**: depende de la **Fase 9 completa** —sin el detalle por Código (T139/T140) ni el buscador con su Descripción sincronizada (T142/T143) no hay dónde enganchar la sugerencia sin abrir una segunda ruta de resolución—; no bloquea a ninguna otra
 
 ### Dentro de la Fase 2 — el ciclo rojo→verde es estrictamente secuencial entre bloques
 
@@ -411,6 +459,7 @@ de la vista, según fija la reevaluación post-Fase 1 de [plan.md](./plan.md).
 - Fase 2: los cinco tests de esquema (T016–T019a) en paralelo; luego las seis entidades (T020–T025) en paralelo; luego las cinco configuraciones (T031–T035) en paralelo
 - Dentro de cada historia, los tests marcados `[P]` escriben en archivos distintos y corren en paralelo
 - Con equipo: tras la Fase 2, US1, US2, US3 y US4 pueden avanzar en paralelo; US5 espera a US4
+- Fase 10: sólo T149 y T153 llevan `[P]`. T150 agrega casos al archivo de T149; T148 modifica un archivo existente; y T152 y T154 dependen de lo que documenta T151 y de lo que expone T152, respectivamente
 
 ---
 

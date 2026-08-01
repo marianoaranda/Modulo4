@@ -9,9 +9,11 @@
 Los requisitos RF-001 a RF-033 están implementados y verificados. Los requisitos
 **RF-016a, RF-020e, RF-020f y RF-034 a RF-034c** —todos de interfaz de usuario, incorporados el
 2026-07-31 al integrar clarificaciones de la sesión 2026-07-25 que habían quedado sin traducir a
-requisitos— están **especificados pero no implementados**, y por lo tanto no tienen tareas ni
-cobertura de tests todavía. Se los identifica en la lista con la marca *pendiente de
-implementación*.
+requisitos— están **especificados pero no implementados**; ya tienen tareas en la Fase 9 de
+[tasks.md](./tasks.md), pero todavía no cobertura de tests. Los requisitos **RF-020g a RF-020i**
+—también de interfaz, incorporados el 2026-08-01— están igualmente **especificados y no
+implementados**, con tareas en la Fase 10, que depende de la Fase 9. A todos se los identifica en la
+lista con la marca *pendiente de implementación*.
 
 **Entrada**: Descripción del usuario: "Generá el spec a partir del PRD que está en /PRD.md"
 
@@ -35,6 +37,11 @@ y cuando el usuario utiliza la busqueda, tambien debe cambiar la descripcion.
 ### Sesión 2026-07-31
 
 - Q: Las cuatro clarificaciones de la sesión anterior sobre la interfaz (cálculo interactivo del Precio de Venta, sugerencia del Número de Movimiento, popup de búsqueda de artículos y su encapsulamiento) quedaron registradas pero nunca se integraron a Requisitos Funcionales, por lo que no llegaron a la implementación. ¿Qué se hace con ellas? → A: Integrarlas al spec como requisitos formales (RF-016a, RF-020e, RF-020f y RF-034 a RF-034c) sin implementarlas todavía, de modo que la brecha quede documentada y trazable.
+
+### Sesión 2026-08-01
+
+- Q: ¿Cómo se completa el Precio Unitario en la carga de movimientos? → A: en la carga de movimientos, cuando se cargue el código de artículo, debe sugerir el precio unitario según el tipo de movimiento: si el tipo de movimiento es compra, sugerir el precio de costo; si es venta, sugerir el precio de venta.
+- Q: ¿Cómo se presenta la grilla de detalle de la carga de movimientos? → A: debe tener las columnas Código, Cantidad, Precio Unitario y Precio Total; debajo de cada código debe mostrar la descripción del artículo, y debe mostrar un total general sumando la columna de precio total.
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -94,6 +101,10 @@ de cada artículo, y que el resultado se exporta a Excel.
 10. **Dado** un rango con Código inicial y final informados, **Cuando** se ejecuta la Consulta de Stock Actual, **Entonces** se incluyen los artículos cuyo Código está entre ambos extremos inclusive según orden alfabético; y si uno o ambos extremos se dejan vacíos, no se aplica límite por ese lado.
 11. **Dado** un artículo del catálogo sin ningún movimiento registrado, **Cuando** se ejecuta cualquiera de las dos consultas, **Entonces** el artículo aparece con Stock Actual 0 y se le aplican las reglas de pedido como a cualquier otro.
 12. **Dado** un resultado que alcanza el tope de 10.000 filas, **Cuando** se muestra, **Entonces** el sistema informa explícitamente que el resultado fue recortado y que conviene acotar con el filtro.
+13. **Dado** un Movimiento nuevo de tipo Compra, **Cuando** se ingresa el Código de un artículo en una línea de detalle, **Entonces** el Precio Unitario se completa con el Precio de Costo de ese artículo; y **Dado** el tipo Venta, **Entonces** se completa con su Precio de Venta.
+14. **Dado** un Precio Unitario sugerido, **Cuando** el usuario lo reemplaza por otro valor y graba, **Entonces** se graba el valor que el usuario dejó en el campo y no el del catálogo; y **Cuando** después se cambia el Tipo de Movimiento, **Entonces** los Precios Unitarios ya cargados no se reescriben.
+15. **Dado** la pantalla de carga de un Movimiento, **Cuando** se muestra el detalle, **Entonces** tiene las columnas Código, Cantidad, Precio Unitario y Precio Total, y debajo del Código de cada línea aparece la Descripción del artículo correspondiente al Código vigente.
+16. **Dado** un detalle con varias líneas, **Cuando** se edita la Cantidad o el Precio Unitario de cualquiera de ellas, o se agrega o quita una línea, **Entonces** el Precio Total de la línea y el "Total General" —suma de los Precios Totales— se actualizan sin grabar ni recargar; y **Dado** un detalle sin líneas, **Entonces** el Total General es 0.
 
 ---
 
@@ -168,6 +179,9 @@ acceso de P4, pero no aporta valor de negocio directo por sí mismo.
 - **Fallo parcial en movimiento multilínea**: si cualquier línea falla su validación, no se aplica ninguna; el movimiento es todo-o-nada.
 - **Cantidad no entera o ≤ 0**: cualquier línea con cantidad que no sea entero positivo invalida todo el movimiento. Los dos casos se rechazan en capas distintas y con códigos distintos: el **no entero** en el borde de la solicitud con 400 (RF-018a), el **entero ≤ 0** como regla de negocio (RF-023).
 - **Cantidad o precio fuera de rango**: una línea cuya Cantidad supere 1.000.000 de unidades, cuyo Precio Unitario sea negativo o supere 9.999.999,99, o cuyo Precio Total supere 999.999.999.999,99, invalida todo el movimiento.
+- **Sugerencia de precio sin artículo**: si el Código tipeado no existe en el catálogo, no hay sugerencia de Precio Unitario ni Descripción que mostrar; la pantalla no marca error por eso y el rechazo llega recién al grabar (404 de RF-020e).
+- **Artículo sin precio útil para el Tipo**: un artículo con Precio de Costo 0 sugiere 0 en una compra; es un valor válido (RF-023c admite el precio cero) y el usuario puede reemplazarlo.
+- **Cambio de Tipo con líneas ya cargadas**: los Precios Unitarios existentes se conservan; el usuario que quiera la sugerencia del otro Tipo vuelve a ingresar el Código de la línea. El Total General se recalcula igual, porque depende de las líneas y no del Tipo.
 - **Código duplicado**: no se permite dar de alta ni modificar un artículo hacia un Código ya usado.
 - **Baja de entidad referenciada**: no se permite eliminar un artículo con movimientos asociados ni un perfil con usuarios asignados; la operación se rechaza con un error y el registro permanece intacto.
 - **Renombre del perfil administrador**: cambiar la Descripción del perfil administrador es una operación válida y no altera los privilegios de sus usuarios; tampoco los otorga a un perfil renombrado a "administrador". El privilegio sigue a la marca interna, no al texto.
@@ -243,6 +257,13 @@ tarea ni test asociado, y el sistema no lo cumple.
   - Un Código inexistente en una línea de detalle se rechaza con **no encontrado (404)** identificando el Código ofensor, y la resolución del Código usa la misma regla de comparación insensible a mayúsculas y sensible a acentos de RF-017a, de modo que el usuario pueda cargar `a-001` donde el catálogo tiene `A-001`.
   - El requisito alcanza a la **línea de detalle**, no al direccionamiento del artículo como recurso propio: `/api/articulos/{articuloId}` sigue usando el identificador, porque ahí no lo tipea nadie —la interfaz navega por enlaces— y ningún requisito exige que el Código sea la clave de ruta del catálogo. Acotarlo evita convertir una corrección puntual en un rediseño del ABM de artículos.
 - **RF-020f** (RF-20) — *pendiente de implementación*: El sistema DEBE mostrar en la pantalla de carga de un Movimiento nuevo el Número correlativo que le correspondería, en modo **sólo lectura**. Es una sugerencia informativa y no altera RF-020a: el Número definitivo lo asigna la secuencia al grabar, de modo que dos cargas simultáneas no puedan quedarse con el mismo valor por haberlo visto en pantalla.
+- **RF-020g** (RF-20/RF-16) — *pendiente de implementación*: El sistema DEBE **sugerir el Precio Unitario** de una línea de detalle a partir del catálogo cada vez que se establece o cambia el Código de esa línea en la pantalla de carga de un Movimiento, según el Tipo de Movimiento vigente: si el Tipo es **Compra**, el Precio de Costo del artículo; si es **Venta**, su Precio de Venta (el que calcula RF-016). La sugerencia se produce por igual cuando el Código se teclea a mano y cuando se elige desde el buscador, por la misma ruta de código que exige RF-034b. El valor sugerido es **editable**: lo que se graba es siempre lo que quedó en el campo, en coherencia con RF-023b, que prohíbe validar el Precio Unitario contra el catálogo. La sugerencia es una comodidad de carga, no una regla de negocio ni una validación.
+  - La sugerencia se dispara **sólo** por el cambio de Código. Cambiar el Tipo de Movimiento después NO DEBE reescribir los Precios Unitarios ya presentes en el detalle: pueden haber sido editados a mano y pisarlos perdería lo que el usuario cargó. Para obtener la sugerencia con el Tipo nuevo, el usuario vuelve a ingresar el Código de la línea.
+  - Si el Código no corresponde a ningún artículo del catálogo, no hay sugerencia: el Precio Unitario queda como estaba y la Descripción de RF-020h se muestra vacía. La línea inválida se rechaza recién al grabar, con el **no encontrado (404)** de RF-020e; la ausencia de sugerencia no es un error de pantalla.
+  - Al abrir un Movimiento existente para modificarlo (RF-022), sus líneas conservan el Precio Unitario grabado y NO se re-sugieren: el precio informado refleja la operación real de ese movimiento, no el catálogo vigente. Sólo una línea cuyo Código se cambia recibe la sugerencia.
+  - La pantalla necesita, para el Código vigente, la Descripción (RF-034b) y los dos precios del catálogo. Las tres se DEBEN obtener con **una única consulta por Código**, para que no existan dos rutas de resolución del Código que puedan divergir entre lo que se muestra y lo que se sugiere.
+- **RF-020h** (RF-20) — *pendiente de implementación*: El sistema DEBE presentar la grilla de detalle de la pantalla de carga de un Movimiento con exactamente cuatro columnas y en este orden: **Código, Cantidad, Precio Unitario, Precio Total**; y DEBE mostrar **debajo del Código de cada línea** la Descripción del artículo correspondiente al Código vigente, sin columna propia. La Descripción es informativa, no editable, y se mantiene sincronizada por la misma regla de RF-034b, tanto si el Código se tecleó como si se eligió desde el buscador. El Precio Total de la línea es el de RF-020c (Cantidad × Precio Unitario), se muestra como resultado calculado no editable y se **recalcula de forma interactiva** a medida que el usuario edita la Cantidad o el Precio Unitario, sin grabar ni recargar; la fuente de verdad sigue siendo el cálculo del servidor, de modo que un cliente que no ejecute ningún recálculo no pueda alterar el Precio Total grabado.
+- **RF-020i** (RF-20) — *pendiente de implementación*: El sistema DEBE mostrar en la pantalla de carga de un Movimiento un **Total General**, rotulado exactamente **"Total General"**, igual a la suma de los Precios Totales de todas las líneas del detalle, recalculado de forma interactiva ante cualquier cambio del detalle —alta o baja de una línea, edición de Cantidad, Precio Unitario o Código— sin necesidad de grabar ni recargar. Es informativo y no editable: no se persiste ni se incorpora como campo del encabezado del Movimiento, sino que se deriva del detalle cada vez que se muestra, de modo que no pueda quedar desfasado de las líneas. Un detalle sin líneas muestra Total General 0.
 - **RF-021** (RF-21): El sistema DEBE permitir dar de baja un Movimiento existente (encabezado y detalle).
 - **RF-022** (RF-22): El sistema DEBE permitir modificar un Movimiento existente (encabezado y detalle).
 - **RF-023** (RF-23): El sistema DEBE rechazar el alta o modificación de un Movimiento con alguna línea cuya Cantidad no sea un número entero mayor que 0.
@@ -291,7 +312,7 @@ tarea ni test asociado, y el sistema no lo cumple.
 - **Usuario**: persona que opera el sistema; identificador, nombre de usuario, nombre completo, credenciales protegidas (representación no reversible + salt propio) y perfil asociado. El último usuario cuyo perfil tenga la marca de administrador no puede darse de baja ni cambiar de perfil.
 - **Artículo**: ítem del catálogo; Código único (texto; base del orden alfabético y del rango de las consultas), descripción, precio de costo, margen, precio de venta calculado, y los tres parámetros de reposición enteros no negativos (stock mínimo, punto de pedido, stock ideal). Su **Stock Actual** es derivado (saldo de movimientos), no un campo propio, siempre entero y nunca negativo. No puede eliminarse mientras tenga movimientos asociados.
 - **Movimiento (encabezado)**: compra o venta; tipo (conjunto cerrado: Compra | Venta), número y fecha (no futura). El Número es autogenerado por el sistema desde una única secuencia global (compras y ventas comparten numeración), es único en todo el sistema, no editable y no reutilizable.
-- **Detalle de movimiento**: líneas del movimiento; artículo referenciado —el **Código** es su identidad de negocio, la que ve y carga el usuario; la referencia física interna es el identificador del artículo—, cantidad (entero > 0), precio unitario informado por operación (no negativo) y precio total calculado como cantidad × precio unitario.
+- **Detalle de movimiento**: líneas del movimiento; artículo referenciado —el **Código** es su identidad de negocio, la que ve y carga el usuario; la referencia física interna es el identificador del artículo—, cantidad (entero > 0), precio unitario informado por operación (no negativo) y precio total calculado como cantidad × precio unitario. El precio unitario puede **inicializarse** con una sugerencia tomada del catálogo según el tipo del movimiento (RF-020g), pero una vez cargado no conserva ningún vínculo con él. El total general que muestra la pantalla de carga (RF-020i) es derivado del detalle y no un atributo del encabezado.
 - **Registro de error**: bitácora de fallos; identificador, fecha/hora, nombre de máquina, mensaje y detalle de la excepción.
 
 **Terminología canónica**: se usa **Stock Actual** en todo el documento para designar el saldo de
