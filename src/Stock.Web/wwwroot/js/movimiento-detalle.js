@@ -95,6 +95,25 @@
             }
         });
 
+        // RF-020j: líneas a demanda. La pantalla abre con una sola y el usuario agrega las que
+        // necesite. La línea clonada no necesita cableado propio —la búsqueda, la Descripción y la
+        // sugerencia trabajan por delegación—, pero sí una numeración secuencial: el binding del
+        // modelo corta la lista en el primer índice que falte.
+        var boton = document.querySelector('[data-agregar-linea]');
+        var plantilla = document.getElementById('plantillaLineaDetalle');
+
+        if (boton && plantilla) {
+            boton.addEventListener('click', function () {
+                var cuerpo = document.querySelector('#detalle tbody');
+                var indice = cuerpo.querySelectorAll('tr').length;
+
+                cuerpo.insertAdjacentHTML(
+                    'beforeend', plantilla.innerHTML.split('__i__').join(indice));
+
+                recalcularTotalGeneral();
+            });
+        }
+
         recalcularTodo();
     });
 })();

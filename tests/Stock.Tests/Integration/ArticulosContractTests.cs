@@ -170,6 +170,87 @@ public class ArticulosContractTests : IntegrationTestBase
         });
     }
 
+    // -------------------------------------------------------------------------------------
+    // T157 — RF-025b: los extremos del catálogo, que la pantalla sugiere como rango.
+    // -------------------------------------------------------------------------------------
+
+    [Test]
+    public async Task Los_extremos_del_catalogo_son_el_primer_y_el_ultimo_codigo()
+    {
+        // El orden es el de RF-025a, el mismo del rango y del listado: no un orden ordinal por
+        // punto de código. `a-002` va entre `A-001` y `B-001` porque la comparación es insensible
+        // a mayúsculas; en un orden ordinal, la minúscula quedaría última y el rango sugerido
+        // dejaría afuera artículos que sí pertenecen al catálogo.
+        foreach (var codigo in new[] { "B-001", "A-001", "a-002" })
+        {
+            await Client.PostAsJsonAsync(Recurso, Articulo(codigo));
+        }
+
+        var extremos = await ExtremosAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(extremos.desde, Is.EqualTo("A-001"));
+            Assert.That(extremos.hasta, Is.EqualTo("B-001"));
+        });
+    }
+
+    [Test]
+    public async Task Con_el_catalogo_vacio_los_extremos_vienen_en_nulo_y_no_es_un_404()
+    {
+        // Un catálogo vacío no es un recurso que falte: la pantalla deja los dos campos en blanco,
+        // que por RF-025a significa "sin límite", y consulta igual (RF-025b).
+        var respuesta = await Client.GetAsync($"{Recurso}/extremos");
+
+        using var documento = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(respuesta.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(documento.RootElement.GetProperty("codigoDesde").ValueKind,
+                Is.EqualTo(JsonValueKind.Null));
+            Assert.That(documento.RootElement.GetProperty("codigoHasta").ValueKind,
+                Is.EqualTo(JsonValueKind.Null));
+        });
+    }
+
+    [Test]
+    [Category(TestCategories.Volumen)]
+    public async Task Con_mas_de_10000_articulos_el_extremo_superior_es_el_real_y_no_el_de_la_primera_pagina()
+    {
+        // El caso que distingue "consultar los extremos" de "mirar el listado": `GET /api/articulos`
+        // recorta en 10.000 filas (RF-027), así que su última fila **no** es el último Código del
+        // catálogo. Una implementación que reusara el listado pasaría todos los demás casos.
+        await EjecutarSqlAsync("""
+            INSERT INTO dbo.Articulo
+                (Codigo, Descripcion, PrecioCosto, Margen, StockMinimo, PuntoPedido, StockIdeal)
+            SELECT TOP (10001)
+                   'A-' + RIGHT('00000' + CAST(ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS varchar(5)), 5),
+                   N'Artículo de volumen', 10.00, 0, 0, 0, 0
+              FROM sys.all_objects a CROSS JOIN sys.all_objects b;
+            """);
+
+        var extremos = await ExtremosAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(extremos.desde, Is.EqualTo("A-00001"));
+            Assert.That(extremos.hasta, Is.EqualTo("A-10001"),
+                "El último del catálogo, no el último de las primeras 10.000 filas.");
+        });
+    }
+
+    private async Task<(string? desde, string? hasta)> ExtremosAsync()
+    {
+        var respuesta = await Client.GetAsync($"{Recurso}/extremos");
+        respuesta.EnsureSuccessStatusCode();
+
+        using var documento = JsonDocument.Parse(await respuesta.Content.ReadAsStringAsync());
+
+        return (documento.RootElement.GetProperty("codigoDesde").GetString(),
+                documento.RootElement.GetProperty("codigoHasta").GetString());
+    }
+
     [Test]
     public async Task Leer_modificar_o_dar_de_baja_un_articulo_inexistente_devuelve_404()
     {

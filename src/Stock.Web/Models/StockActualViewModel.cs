@@ -40,3 +40,14 @@ public sealed class StockActualViewModel
 
     public bool MostrarMensajeDeResultadoVacio => Consultada && Filas.Count == 0;
 }
+
+/// <summary>
+/// Respuesta de <c>GET /api/articulos/extremos</c>: el rango que la pantalla sugiere al abrirse
+/// (RF-025b). Ambos son nulos con el catálogo vacío.
+/// </summary>
+public sealed class ExtremosViewModel
+{
+    public string? CodigoDesde { get; set; }
+
+    public string? CodigoHasta { get; set; }
+}

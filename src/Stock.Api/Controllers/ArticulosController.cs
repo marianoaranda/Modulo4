@@ -31,6 +31,9 @@ public sealed class ArticuloRequest
     public int StockIdeal { get; set; }
 }
 
+/// <summary>Extremos del catálogo según el orden de RF-025a; ambos nulos si está vacío.</summary>
+public sealed record ExtremosResponse(string? CodigoDesde, string? CodigoHasta);
+
 public sealed record ArticuloResponse(
     int ArticuloId,
     string Codigo,
@@ -92,6 +95,29 @@ public class ArticulosController : ControllerBase
             .ToListAsync(ct);
 
         return Ok(articulos);
+    }
+
+    /// <summary>
+    /// T162 — RF-025b: los extremos del catálogo, que la pantalla sugiere como rango.
+    ///
+    /// Es un recurso propio y no una lectura del listado porque el listado recorta en 10.000 filas
+    /// (RF-027): su última fila no es el último Código del catálogo, y el rango sugerido dejaría
+    /// afuera artículos justo en el caso que ese tope contempla.
+    ///
+    /// <c>MIN</c>/<c>MAX</c> se resuelven en el motor y no traen filas a memoria, y el orden que
+    /// aplican es el de la collation de la columna — la misma que define RF-025a y que ordena el
+    /// resto de las consultas—, así que no hay una segunda regla de orden que pueda divergir.
+    /// </summary>
+    [HttpGet("extremos")]
+    public async Task<IActionResult> Extremos(CancellationToken ct)
+    {
+        var extremos = await _db.Articulos
+            .GroupBy(_ => 1)
+            .Select(g => new ExtremosResponse(g.Min(a => a.Codigo), g.Max(a => a.Codigo)))
+            .FirstOrDefaultAsync(ct);
+
+        // Catálogo vacío: no es un recurso que falte, así que 200 con ambos en nulo y no 404.
+        return Ok(extremos ?? new ExtremosResponse(null, null));
     }
 
     [HttpGet("{articuloId:int}")]

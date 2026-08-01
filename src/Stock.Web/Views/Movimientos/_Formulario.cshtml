@@ -69,25 +69,6 @@
                 <td class="text-end align-middle"><span data-precio-total>@Model.Detalle[i].PrecioTotal</span></td>
             </tr>
         }
-        @* Filas en blanco para poder agregar líneas sin JavaScript. Las que queden vacías no se
-           envían a la API: son filas del formulario que el usuario nunca completó. *@
-        @for (var i = Model.Detalle.Count; i < Model.Detalle.Count + 4; i++)
-        {
-            var idCodigo = $"Detalle_{i}__Codigo";
-
-            <tr>
-                <td>
-                    <div class="input-group">
-                        <input class="form-control" name="Detalle[@i].Codigo" id="@idCodigo" value="" data-articulo-codigo />
-                        <partial name="_BotonBuscarArticulo" model="idCodigo" />
-                    </div>
-                    <div class="form-text" data-descripcion-de="@idCodigo"></div>
-                </td>
-                <td><input class="form-control" name="Detalle[@i].Cantidad" value="0" data-cantidad /></td>
-                <td><input class="form-control" name="Detalle[@i].PrecioUnitario" value="0" data-precio-unitario /></td>
-                <td class="text-end align-middle"><span data-precio-total>0</span></td>
-            </tr>
-        }
     </tbody>
 
     @* RF-020i: suma de la columna Precio Total. Es informativo y derivado del detalle: no se
@@ -100,6 +81,33 @@
         </tr>
     </tfoot>
 </table>
+
+@* RF-020j: las líneas se agregan a demanda. Ya no hay un cupo fijo de filas en blanco —sobraba en
+   el movimiento corto y faltaba en el largo—, y una línea agregada de más se deshace dejándola
+   vacía: las líneas en blanco no se envían. *@
+<button type="button" class="btn btn-outline-primary mb-3" data-agregar-linea>Agregar Línea</button>
+
+@* Plantilla de la línea nueva. `__i__` es el marcador que el script reemplaza por el índice que
+   corresponda: el binding del modelo necesita índices secuenciales, así que la numeración la pone
+   quien clona y no el marcado. Los ganchos son los mismos que los de las líneas ya existentes, de
+   modo que una línea agregada nazca con búsqueda, Descripción, sugerencia de precio y aporte al
+   Total General — sin una segunda clase de línea. *@
+<template id="plantillaLineaDetalle">
+    <tr>
+        <td>
+            <div class="input-group">
+                <input class="form-control" name="Detalle[__i__].Codigo" id="Detalle___i____Codigo" value="" data-articulo-codigo />
+                @* La misma partial que usan las líneas ya existentes: el botón no se redefine acá
+                   ni siquiera dentro de la plantilla (RF-034c). *@
+                <partial name="_BotonBuscarArticulo" model="@("Detalle___i____Codigo")" />
+            </div>
+            <div class="form-text" data-descripcion-de="Detalle___i____Codigo"></div>
+        </td>
+        <td><input class="form-control" name="Detalle[__i__].Cantidad" value="0" data-cantidad /></td>
+        <td><input class="form-control" name="Detalle[__i__].PrecioUnitario" value="0" data-precio-unitario /></td>
+        <td class="text-end align-middle"><span data-precio-total>0</span></td>
+    </tr>
+</template>
 
 <partial name="_BuscadorArticulos" />
 <script src="~/js/movimiento-detalle.js" asp-append-version="true"></script>

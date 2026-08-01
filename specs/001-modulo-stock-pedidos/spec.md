@@ -4,13 +4,13 @@
 
 **Fecha de creación**: 2026-07-24
 
-**Estado**: Implementado hasta RF-034c; tres requisitos de interfaz nuevos, sin construir.
+**Estado**: Implementado y verificado, sin requisitos pendientes.
 
-Los requisitos RF-001 a RF-034c están implementados y cubiertos por tests: las Fases 9 y 10 de
-[tasks.md](./tasks.md) cerraron la brecha de interfaz que este encabezado declaraba. Quedan
-**RF-020j, RF-025b y RF-026c** —comodidades de carga y de consulta incorporadas el 2026-08-01 en la
-segunda tanda de clarificaciones de ese día—, **especificados y no implementados**, con la marca
-*pendiente de implementación* en la lista.
+Todos los requisitos están implementados y cubiertos por tests, incluidos los tres grupos de
+interfaz que este encabezado fue declarando como brecha: los del 2026-07-31 (RF-016a, RF-020e,
+RF-020f y el grupo RF-034), la carga asistida del detalle (RF-020g a RF-020i) y las comodidades de
+carga y consulta (RF-020j, RF-025b, RF-026c). Los construyeron las Fases 9, 10 y 11 de
+[tasks.md](./tasks.md).
 
 **Entrada**: Descripción del usuario: "Generá el spec a partir del PRD que está en /PRD.md"
 
@@ -217,8 +217,8 @@ orden de aparición.
 
 La marca *pendiente de implementación* señala un requisito acordado y especificado que todavía no se
 construyó. No es una nota de estado transitoria del documento: mientras esté, ese requisito no tiene
-tarea ni test asociado, y el sistema no lo cumple. Es el mecanismo con el que este spec documentó
-dos brechas ya cerradas y con el que hoy señala a RF-020j, RF-025b y RF-026c.
+tarea ni test asociado, y el sistema no lo cumple. Hoy no la lleva ninguno: es el mecanismo con el
+que este spec documentó tres brechas sucesivas y las hizo trazables hasta cerrarlas.
 
 ### Requisitos Funcionales
 
@@ -278,7 +278,7 @@ dos brechas ya cerradas y con el que hoy señala a RF-020j, RF-025b y RF-026c.
   - La pantalla necesita, para el Código vigente, la Descripción (RF-034b) y los dos precios del catálogo. Las tres se DEBEN obtener con **una única consulta por Código**, para que no existan dos rutas de resolución del Código que puedan divergir entre lo que se muestra y lo que se sugiere.
 - **RF-020h** (RF-20): El sistema DEBE presentar la grilla de detalle de la pantalla de carga de un Movimiento con exactamente cuatro columnas y en este orden: **Código, Cantidad, Precio Unitario, Precio Total**; y DEBE mostrar **debajo del Código de cada línea** la Descripción del artículo correspondiente al Código vigente, sin columna propia. La Descripción es informativa, no editable, y se mantiene sincronizada por la misma regla de RF-034b, tanto si el Código se tecleó como si se eligió desde el buscador. El Precio Total de la línea es el de RF-020c (Cantidad × Precio Unitario), se muestra como resultado calculado no editable y se **recalcula de forma interactiva** a medida que el usuario edita la Cantidad o el Precio Unitario, sin grabar ni recargar; la fuente de verdad sigue siendo el cálculo del servidor, de modo que un cliente que no ejecute ningún recálculo no pueda alterar el Precio Total grabado.
 - **RF-020i** (RF-20): El sistema DEBE mostrar en la pantalla de carga de un Movimiento un **Total General**, rotulado exactamente **"Total General"**, igual a la suma de los Precios Totales de todas las líneas del detalle, recalculado de forma interactiva ante cualquier cambio del detalle —alta o baja de una línea, edición de Cantidad, Precio Unitario o Código— sin necesidad de grabar ni recargar. Es informativo y no editable: no se persiste ni se incorpora como campo del encabezado del Movimiento, sino que se deriva del detalle cada vez que se muestra, de modo que no pueda quedar desfasado de las líneas. Un detalle sin líneas muestra Total General 0.
-- **RF-020j** (RF-20) — *pendiente de implementación*: El sistema DEBE permitir agregar líneas de detalle **a demanda** mediante un botón rotulado exactamente **"Agregar Línea"**, que suma una línea vacía al final de la grilla sin grabar ni recargar la pantalla. La pantalla NO DEBE ofrecer un cupo fijo de líneas en blanco: se abre con **una sola** línea vacía —para que haya por dónde empezar— y el usuario agrega tantas como necesite. No hay tope propio de líneas por Movimiento; siguen rigiendo los límites por línea de RF-023a.
+- **RF-020j** (RF-20): El sistema DEBE permitir agregar líneas de detalle **a demanda** mediante un botón rotulado exactamente **"Agregar Línea"**, que suma una línea vacía al final de la grilla sin grabar ni recargar la pantalla. La pantalla NO DEBE ofrecer un cupo fijo de líneas en blanco: se abre con **una sola** línea vacía —para que haya por dónde empezar— y el usuario agrega tantas como necesite. No hay tope propio de líneas por Movimiento; siguen rigiendo los límites por línea de RF-023a.
   - Una línea agregada y dejada **en blanco** no se envía ni invalida el Movimiento: es una fila del formulario que el usuario nunca completó, no una línea con Cantidad 0 que deba rechazarse por RF-023. Es también la forma de deshacer un "Agregar Línea" de más, sin necesidad de una operación de borrado.
   - Cada línea agregada nace con **todo el comportamiento** de las que ya estaban: su botón de búsqueda (RF-034), la Descripción bajo el Código (RF-020h), la sugerencia de Precio Unitario (RF-020g) y su aporte al Total General (RF-020i). Una línea nueva que no sugiriera precio, o que no sumara al total, sería una segunda clase de línea y contradiría esos requisitos.
 - **RF-021** (RF-21): El sistema DEBE permitir dar de baja un Movimiento existente (encabezado y detalle).
@@ -298,7 +298,7 @@ dos brechas ya cerradas y con el que hoy señala a RF-020j, RF-025b y RF-026c.
 **Consultas**
 - **RF-025** (RF-25): El sistema DEBE ofrecer la consulta "Consulta de Stock Actual", con parámetro rango de artículos (inicial y final), columnas Código, Descripción y Cantidad —donde Cantidad es el Stock Actual, saldo de movimientos: ventas restan, compras suman—, exportable a Excel.
 - **RF-025a** (RF-25): El sistema DEBE interpretar el rango de artículos como un rango inclusivo sobre el Código, comparado y ordenado alfabéticamente como texto. Ambos extremos son opcionales: si el inicial está vacío no se aplica límite inferior, si el final está vacío no se aplica límite superior, y si ambos están vacíos se consideran todos los artículos; en todos los casos rige el tope de RF-027. Si el Código inicial es alfabéticamente mayor que el final, el resultado es vacío y no un error. La comparación y el orden del Código son **insensibles a mayúsculas y sensibles a acentos**, según la regla de ordenamiento alfabético del español; no es un orden ordinal por punto de código. Esta distinción es observable: determina qué filas entran y en qué posición quedan frente al tope de RF-027.
-- **RF-025b** (RF-25) — *pendiente de implementación*: El sistema DEBE **sugerir** en la pantalla de la Consulta de Stock Actual, al abrirla, el rango completo del catálogo: **Código desde** = el primer Código y **Código hasta** = el último, según el orden que fija RF-025a (insensible a mayúsculas, sensible a acentos). Los dos campos quedan **editables**: es una comodidad para que el usuario vea de entrada sobre qué universo va a consultar y lo acote desde ahí, no una restricción.
+- **RF-025b** (RF-25): El sistema DEBE **sugerir** en la pantalla de la Consulta de Stock Actual, al abrirla, el rango completo del catálogo: **Código desde** = el primer Código y **Código hasta** = el último, según el orden que fija RF-025a (insensible a mayúsculas, sensible a acentos). Los dos campos quedan **editables**: es una comodidad para que el usuario vea de entrada sobre qué universo va a consultar y lo acote desde ahí, no una restricción.
   - Los extremos se calculan **al abrir la pantalla**, contra el catálogo vigente en ese momento. No se recalculan ni se refrescan solos: un artículo dado de alta después de abrirla no cambia lo que el usuario ya tiene en pantalla, y eso es visible y corregible volviendo a entrar.
   - Con el **catálogo vacío** no hay extremos que sugerir y ambos campos quedan en blanco, que por RF-025a significa "sin límite por ese lado" y arroja el mismo resultado vacío. No es un error ni requiere mensaje propio.
   - La sugerencia NO altera el resultado de la consulta: el rango completo y el rango vacío devuelven exactamente las mismas filas, y el tope de 10.000 de RF-027 rige igual. Lo único que cambia es que el usuario ve los extremos en vez de dos campos en blanco.
@@ -308,7 +308,7 @@ dos brechas ya cerradas y con el que hoy señala a RF-020j, RF-025b y RF-026c.
   - Donde Nivel es Stock Mínimo, Punto de Pedido o Stock Ideal según el Modo de Pedido.
 - **RF-026a** (RF-26): El sistema NO DEBE ofrecer parámetro de rango de artículos en "Generar Pedido"; sus únicos parámetros de reposición son los dos de RF-026, más el filtro opcional de acotación de RF-027a.
 - **RF-026b** (RF-26): El sistema DEBE exigir **ambos** parámetros de reposición de RF-026 en cada ejecución de "Generar Pedido", sin valores por defecto implícitos: una solicitud que omita "solo bajo mínimo" o "Modo de Pedido" se rechaza con un error de validación. Fundamento: los dos parámetros determinan por completo el resultado (RF-026) y un valor por defecto silencioso produciría una lista de pedido que el usuario no pidió y no puede distinguir de la que sí. El filtro por descripción de RF-027a, en cambio, es opcional por definición.
-- **RF-026c** (RF-26) — *pendiente de implementación*: El sistema DEBE **sugerir** en la pantalla de "Generar Pedido", al abrirla, los dos parámetros de reposición ya elegidos: **"solo bajo mínimo" = No** y **"Modo de Pedido" = Hasta Stock Ideal**. Ambos quedan editables y el usuario puede cambiarlos antes de consultar.
+- **RF-026c** (RF-26): El sistema DEBE **sugerir** en la pantalla de "Generar Pedido", al abrirla, los dos parámetros de reposición ya elegidos: **"solo bajo mínimo" = No** y **"Modo de Pedido" = Hasta Stock Ideal**. Ambos quedan editables y el usuario puede cambiarlos antes de consultar.
   - Es una **preselección visible en la pantalla**, no un valor por defecto del servidor, y por eso NO contradice a RF-026b: los dos parámetros siguen viajando explícitos en cada ejecución, y una solicitud que omita alguno se sigue rechazando. La diferencia es justamente la que RF-026b protege: acá el usuario ve qué se va a consultar antes de pedirlo, en vez de recibir un resultado que nunca eligió.
   - La sugerencia NO se aplica sola: la consulta se ejecuta cuando el usuario la pide. Abrir la pantalla no dispara ningún cálculo con los valores sugeridos.
 - **RF-027** (RF-25/RF-26): El sistema DEBE acotar el volumen de ambas consultas a un máximo de 10.000 filas y ofrecer un filtro opcional por descripción.

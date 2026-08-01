@@ -25,8 +25,13 @@ public class GenerarPedidoController : Controller
     {
         var vista = new GenerarPedidoViewModel
         {
-            SoloBajoMinimo = soloBajoMinimo,
-            ModoPedido = modoPedido,
+            // RF-026c: la pantalla abre con los dos parámetros ya elegidos. Es una preselección
+            // **visible**, no un valor por defecto del servidor: se aplica sobre el modelo de la
+            // vista y no sobre la decisión de consultar, que sigue mirando lo que llegó en la
+            // solicitud. Si se aplicara antes de esa decisión, abrir la pantalla ejecutaría una
+            // consulta que el usuario no pidió, que es justo lo que RF-026b prohíbe.
+            SoloBajoMinimo = soloBajoMinimo ?? false,
+            ModoPedido = modoPedido ?? ModoPedidoWeb.HastaStockIdeal,
             Descripcion = descripcion,
         };
 

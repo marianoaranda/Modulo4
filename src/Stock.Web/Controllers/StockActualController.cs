@@ -34,6 +34,15 @@ public class StockActualController : Controller
 
         if (!seConsulto)
         {
+            // RF-025b: sólo en el primer ingreso se sugiere el rango completo del catálogo, para
+            // que el usuario vea sobre qué universo va a consultar y lo acote desde ahí. Pedir los
+            // extremos no es consultar: la pantalla sigue sin ejecutar la Consulta de Stock Actual
+            // ni mostrar el mensaje de resultado vacío.
+            var extremos = await ExtremosDelCatalogoAsync(ct);
+
+            vista.CodigoDesde = extremos?.CodigoDesde;
+            vista.CodigoHasta = extremos?.CodigoHasta;
+
             return View(vista);
         }
 
@@ -50,6 +59,19 @@ public class StockActualController : Controller
         vista.Truncado = resultado.Truncado;
 
         return View(vista);
+    }
+
+    /// <summary>
+    /// Extremos del catálogo para el rango sugerido (RF-025b). Si la API no contesta, la pantalla
+    /// abre con los campos en blanco: es una comodidad, no una condición para poder consultar.
+    /// </summary>
+    private async Task<ExtremosViewModel?> ExtremosDelCatalogoAsync(CancellationToken ct)
+    {
+        var respuesta = await _api.Http.GetAsync("/api/articulos/extremos", ct);
+
+        return respuesta.IsSuccessStatusCode
+            ? await RespuestaDeLaApi.LeerAsync<ExtremosViewModel>(respuesta, ct)
+            : null;
     }
 
     /// <summary>Retransmite el archivo que genera la API, sin regenerarlo (RF-031, R-05).</summary>

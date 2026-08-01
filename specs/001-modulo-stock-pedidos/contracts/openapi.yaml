@@ -264,6 +264,30 @@ paths:
             application/problem+json:
               schema: { $ref: '#/components/schemas/ProblemDetails' }
 
+  /api/articulos/extremos:
+    get:
+      tags: [Articulos]
+      summary: Primer y último Código del catálogo (RF-025b)
+      description: >
+        Los dos extremos que la Consulta de Stock Actual sugiere como rango al abrirse, según el
+        orden de RF-025a (insensible a mayúsculas, sensible a acentos). Es un recurso propio y no
+        una lectura del listado porque `GET /api/articulos` recorta en 10.000 filas (RF-027): su
+        última fila no es el último Código del catálogo.
+
+        Con el catálogo vacío devuelve **200 con ambos en `null`**, no 404: no hay recurso que
+        falte, y la pantalla deja los dos campos en blanco, que por RF-025a significa "sin límite".
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  codigoDesde: { type: string, nullable: true }
+                  codigoHasta: { type: string, nullable: true }
+        '401': { $ref: '#/components/responses/NoAutorizado' }
+
   /api/articulos/{articuloId}:
     parameters:
       - name: articuloId

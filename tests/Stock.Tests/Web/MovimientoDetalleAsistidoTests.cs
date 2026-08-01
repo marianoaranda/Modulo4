@@ -162,6 +162,81 @@ public class MovimientoDetalleAsistidoTests : WebTestBase
         });
     }
 
+    // -------------------------------------------------------------------------------------
+    // T160 — RF-020j: líneas de detalle a demanda.
+    // -------------------------------------------------------------------------------------
+
+    [Test]
+    public async Task La_pantalla_de_alta_abre_con_una_sola_linea_vacia()
+    {
+        // Antes abría con cinco filas en blanco: un cupo fijo que sobraba en el caso corriente y
+        // faltaba en el movimiento largo, que era justamente el problema.
+        var grilla = GrillaDelDetalle(await PantallaDeCargaAsync());
+
+        var lineas = Regex.Matches(grilla, "data-articulo-codigo");
+
+        Assert.That(lineas, Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public async Task La_pantalla_ofrece_el_boton_para_agregar_lineas()
+    {
+        var html = await PantallaDeCargaAsync();
+
+        var boton = Regex.Match(
+            html, @"<button[^>]*data-agregar-linea[^>]*>(.*?)</button>", RegexOptions.Singleline);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(boton.Success, Is.True, "Existe el botón de agregar línea.");
+            Assert.That(
+                Regex.Replace(boton.Groups[1].Value, "<[^>]*>", string.Empty).Trim(),
+                Is.EqualTo("Agregar Línea"),
+                "…con el rótulo exacto que fija RF-020j.");
+        });
+    }
+
+    [Test]
+    public async Task La_plantilla_de_la_linea_nueva_trae_los_mismos_ganchos_que_las_existentes()
+    {
+        // Una línea agregada tiene que nacer con todo: búsqueda, Descripción, sugerencia de precio
+        // y aporte al total. Si le faltara alguno, habría dos clases de línea y RF-020g, RF-020h y
+        // RF-020i valdrían sólo para la primera.
+        var plantilla = PlantillaDeLinea(await PantallaDeCargaAsync());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(plantilla, Does.Contain("data-articulo-codigo"));
+            Assert.That(plantilla, Does.Contain("data-buscador-destino"));
+            Assert.That(plantilla, Does.Contain("data-descripcion-de"));
+            Assert.That(plantilla, Does.Contain("data-cantidad"));
+            Assert.That(plantilla, Does.Contain("data-precio-unitario"));
+            Assert.That(plantilla, Does.Contain("data-precio-total"));
+        });
+    }
+
+    [Test]
+    public async Task La_edicion_sigue_abriendo_con_las_lineas_grabadas()
+    {
+        // El cupo fijo se va, pero las líneas del movimiento que se está modificando no: abrir la
+        // edición con una sola línea vacía perdería el detalle a la vista del usuario.
+        var grilla = GrillaDelDetalle(await PantallaDeEdicionAsync());
+
+        Assert.That(grilla, Does.Contain("A-001"));
+    }
+
+    /// <summary>La plantilla desde la que se clona una línea nueva.</summary>
+    private static string PlantillaDeLinea(string html)
+    {
+        var plantilla = Regex.Match(
+            html, @"<template[^>]*id=""plantillaLineaDetalle""[^>]*>(.*?)</template>",
+            RegexOptions.Singleline);
+
+        Assert.That(plantilla.Success, Is.True, "La pantalla declara la plantilla de la línea.");
+
+        return plantilla.Groups[1].Value;
+    }
+
     private async Task<string> PantallaDeCargaAsync()
     {
         Api.ResponderJson("""{"numero":8}""");

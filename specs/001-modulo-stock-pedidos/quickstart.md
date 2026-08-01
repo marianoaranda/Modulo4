@@ -237,6 +237,22 @@ Con el artículo `A-001` en el catálogo, Precio de Costo 100 y Margen 50 (Preci
 lo que quedó en el campo (RF-023b)— y los dos totales son derivados: se recalculan en pantalla y no
 se persisten.
 
+### V-17 — Las pantallas abren listas para operar (RF-020j, RF-025b, RF-026c)
+
+Con varios artículos en el catálogo:
+
+1. Abrir **Generar Pedido** → "Solo bajo mínimo" viene en **No** y "Modo de Pedido" en **Hasta Stock Ideal**, y **no hay ninguna grilla ni mensaje**: abrir no consulta. Presionar **Consultar** → el resultado es el de esos dos parámetros.
+2. Cambiarlos a Sí / Hasta Stock Mínimo y consultar → manda lo elegido, no lo sugerido.
+3. Abrir **Consulta de Stock Actual** → "Código desde" trae el primer Código del catálogo y "Código hasta" el último, y tampoco hay grilla todavía. Consultar sin tocarlos → el resultado es el mismo que dejando ambos campos en blanco.
+4. Borrar los dos extremos y consultar → mismas filas. Confirma que la sugerencia es una comodidad y no un filtro.
+5. Abrir **Movimientos → Nuevo** → el detalle tiene **una sola** línea vacía. Presionar **"Agregar Línea"** seis veces y cargar siete líneas con Código, Cantidad y Precio Unitario → cada línea nueva ofrece su lupa, su Descripción bajo el Código, la sugerencia de precio según el Tipo y suma al Total General.
+6. Presionar "Agregar Línea" una vez más, dejar esa línea vacía y grabar → el Movimiento se acepta con las siete líneas completas.
+7. Volver a cargar un movimiento, poner un Código con Cantidad 0 y grabar → se rechaza con el error de RF-023, sin grabar nada.
+
+**Resultado esperado**: ninguna de las tres pantallas exige preparación antes de empezar a operar, y
+ninguna decide por el usuario: todo lo sugerido es editable y el resultado de las consultas no
+cambia por haberlo sugerido.
+
 ---
 
 ## Mapa de cobertura
