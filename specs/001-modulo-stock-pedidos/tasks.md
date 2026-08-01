@@ -445,6 +445,57 @@ la "única consulta por Código" de RF-020g: una sola puerta, la misma que ya us
 
 ---
 
+## Fase 11: Comodidades de carga y de consulta (RF-020j, RF-025b, RF-026c)
+
+**Propósito**: construir los tres requisitos que la segunda tanda de clarificaciones del 2026-08-01
+incorporó al spec: el detalle de movimientos con líneas a demanda, y las dos consultas abriendo con
+sus parámetros ya sugeridos.
+
+**Dependencias**: la Fase 11 depende de las Fases 9 y 10, que son las que construyeron la grilla de
+detalle y el buscador que las líneas nuevas tienen que heredar. Las tres tareas de implementación
+son entre sí independientes: tocan tres pantallas distintas.
+
+**Ninguno cambia una regla de negocio**: los tres son comodidades de pantalla y ninguno altera qué
+devuelve una consulta ni qué se graba. Eso fija qué hay que verificar —que la pantalla abra con lo
+sugerido y que lo sugerido sea editable— y, sobre todo, qué **no** debe cambiar:
+
+- RF-026c es una **preselección visible**, no un valor por defecto del servidor. RF-026b sigue
+  rechazando la solicitud que omita un parámetro de reposición, y abrir la pantalla **no** ejecuta
+  la consulta. T159 cubre las dos cosas: sin ese par de casos, la preselección se implementaría con
+  un default en el servidor, que es exactamente lo que RF-026b prohíbe.
+- RF-025b no altera el resultado: el rango completo y el rango vacío devuelven las mismas filas.
+- RF-020j no relaja RF-023: una línea **en blanco** no se envía, pero una con Código y Cantidad 0
+  se sigue rechazando.
+
+**Los extremos del catálogo no salen del listado**: `GET /api/articulos` recorta en 10.000 filas
+(RF-027), así que el último de esa página no es el último del catálogo. Por eso T161/T162 agregan un
+recurso propio que los calcula en el motor con la collation de la columna, que es la que define el
+orden de RF-025a.
+
+### Tests de la Fase 11 ⚠️ ESCRIBIR PRIMERO, DEBEN FALLAR
+
+- [ ] T157 Agregar a `tests/Stock.Tests/Integration/ArticulosContractTests.cs` los casos de `GET /api/articulos/extremos`: devuelve el primer y el último Código según el orden de RF-025a —insensible a mayúsculas, sensible a acentos, no ordinal por punto de código—, con el catálogo vacío devuelve ambos en nulo y **no** 404, y con más de 10.000 artículos devuelve el último real del catálogo y no el de la primera página. Modifica un archivo existente: no lleva `[P]` (RF-025b)
+- [ ] T158 [P] Tests de la preselección de "Generar Pedido" en `tests/Stock.Tests/Web/GenerarPedidoPreseleccionTests.cs`: al abrir la pantalla, "solo bajo mínimo" viene en **No** y "Modo de Pedido" en **Hasta Stock Ideal**, ambos editables; **la pantalla no llama a la API** —abrir no consulta— y los valores elegidos por el usuario ganan sobre los sugeridos (RF-026c)
+- [ ] T158a Agregar a `tests/Stock.Tests/Web/GenerarPedidoPreseleccionTests.cs` el caso que protege a RF-026b: una solicitud a la **API** que omita un parámetro de reposición se sigue rechazando, de modo que la preselección viva sólo en la pantalla. Es el caso que distingue "preseleccionar" de "poner un default en el servidor" (RF-026b, RF-026c)
+- [ ] T159 [P] Tests del rango sugerido en `tests/Stock.Tests/Web/StockActualRangoTests.cs`: al abrir la Consulta de Stock Actual, los campos traen el primer y el último Código que devuelve T162; con el catálogo vacío quedan en blanco y sin error; **abrir la pantalla no ejecuta la consulta** (sigue valiendo la distinción entre primer ingreso y consulta sin filtros); y un rango tecleado por el usuario no se pisa con el sugerido (RF-025b)
+- [ ] T160 Agregar a `tests/Stock.Tests/Web/MovimientoDetalleAsistidoTests.cs` los casos de RF-020j: la pantalla de alta abre con **una sola** línea vacía y no con cinco; existe un botón rotulado exactamente **"Agregar Línea"**; la plantilla de la línea nueva declara los mismos ganchos que las existentes —búsqueda, Descripción, Cantidad, Precio Unitario, Precio Total—, de modo que no pueda nacer una línea de segunda clase; y la pantalla de edición sigue abriendo con las líneas grabadas. Agrega casos a un archivo existente: no lleva `[P]` (RF-020j)
+- [ ] T160a [P] Test de contrato del alta con líneas en blanco en `tests/Stock.Tests/Web/MovimientoLineasEnBlancoTests.cs`: un formulario con tres líneas donde la del medio quedó vacía envía a la API **sólo las dos completas**, sin desplazar ni renumerar mal las demás; y una línea con Código cargado y Cantidad 0 **sí** viaja, para que la API la rechace por RF-023 (RF-020j)
+
+### Implementación de la Fase 11
+
+- [ ] T161 Documentar en `specs/001-modulo-stock-pedidos/contracts/openapi.yaml` el recurso `GET /api/articulos/extremos`, que devuelve `{ codigoDesde, codigoHasta }` con los extremos del catálogo según RF-025a y ambos en `null` con el catálogo vacío (RF-025b)
+- [ ] T162 Implementar `GET /api/articulos/extremos` en `src/Stock.Api/Controllers/ArticulosController.cs` con `MIN`/`MAX` sobre el Código, **sin traer filas a memoria** y sin recorrer el listado con su tope: el orden lo define la collation de la columna, la misma de RF-025a (RF-025b)
+- [ ] T163 Consumir T162 desde `src/Stock.Web/Controllers/StockActualController.cs` y precargar el rango **sólo en el primer ingreso a la pantalla**, sin pisar lo que el usuario haya tecleado ni convertir el ingreso en una consulta ejecutada (RF-025b)
+- [ ] T164 [P] Preseleccionar los dos parámetros de reposición en `src/Stock.Web/Controllers/GenerarPedidoController.cs` y su vista: la vista recibe los valores sugeridos y la rama que hoy detecta "todavía no se eligieron" **se conserva**, porque es la que impide que abrir la pantalla dispare la consulta (RF-026c, RF-026b)
+- [ ] T165 [P] Reemplazar en `src/Stock.Web/Views/Movimientos/_Formulario.cshtml` las cuatro filas en blanco por una plantilla de línea y un botón **"Agregar Línea"**, y agregar a `src/Stock.Web/wwwroot/js/movimiento-detalle.js` el clonado con renumeración secuencial de los índices del modelo. La línea clonada no necesita cableado propio: la búsqueda, la Descripción y la sugerencia ya trabajan por delegación desde T142/T153 (RF-020j)
+- [ ] T166 Quitar de `spec.md` las tres marcas *pendiente de implementación* de RF-020j, RF-025b y RF-026c y actualizar el encabezado de Estado, y agregar a [quickstart.md](./quickstart.md) el escenario **V-17**, que recorre las dos pantallas de consulta recién abiertas y la carga de un movimiento de siete líneas
+- [ ] T167 Ejecutar `dotnet test StockModulo.sln` y confirmar que toda la suite queda en verde
+
+**Punto de control**: las tres pantallas abren listas para operar y el spec vuelve a quedar sin
+requisitos pendientes.
+
+---
+
 ## Dependencias y Orden de Ejecución
 
 ### Dependencias entre fases
@@ -454,6 +505,7 @@ la "única consulta por Código" de RF-020g: una sola puerta, la misma que ya us
 - **Historias (Fases 3–7)**: todas dependen de la Fase 2
 - **Pulido (Fase 8)**: depende de las historias que se quieran entregar
 - **Brecha de interfaz (Fase 9)**: depende de las Fases 3 a 6; bloquea a la Fase 10
+- **Comodidades de carga y consulta (Fase 11)**: depende de las Fases 9 y 10 —hereda la grilla de detalle y el buscador—; no bloquea a ninguna otra
 - **Carga asistida del detalle (Fase 10)**: depende de la **Fase 9 completa** —sin el detalle por Código (T139/T140), sin la puerta JSON del mismo origen (T141a) ni el buscador con su Descripción sincronizada (T142/T143) no hay dónde enganchar la sugerencia sin abrir una segunda ruta de resolución—; no bloquea a ninguna otra
 
 ### Dentro de la Fase 2 — el ciclo rojo→verde es estrictamente secuencial entre bloques
@@ -489,6 +541,7 @@ la "única consulta por Código" de RF-020g: una sola puerta, la misma que ya us
 - Dentro de cada historia, los tests marcados `[P]` escriben en archivos distintos y corren en paralelo
 - Con equipo: tras la Fase 2, US1, US2, US3 y US4 pueden avanzar en paralelo; US5 espera a US4
 - Fase 9: T136a puede escribirse en paralelo con T134 y T136 (archivos distintos). T141a no lleva `[P]`: modifica `ArticulosController.cs`, que ya existe, y T142 depende de él
+- Fase 11: T158, T159, T160a, T164 y T165 llevan `[P]` —tocan archivos distintos, de tres pantallas independientes—. T157, T158a y T160 agregan casos a archivos existentes, y T163 depende de T162
 - Fase 10: sólo T149 y T153 llevan `[P]`. T150 y T150a agregan casos a archivos que crean otras tareas (T149 y T136a); T148 modifica un archivo existente; y T152, T152a y T154 dependen en cadena de lo que documenta T151, de lo que expone T152 y de lo que expone T152a
 
 ---
