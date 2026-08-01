@@ -253,6 +253,17 @@ Con varios artículos en el catálogo:
 ninguna decide por el usuario: todo lo sugerido es editable y el resultado de las consultas no
 cambia por haberlo sugerido.
 
+### V-18 — Ningún mensaje de validación en inglés (RF-035, RF-035a)
+
+1. Abrir **Artículos → Nuevo**, dejar todo vacío y presionar Grabar → la pantalla avisa **"El campo Código es obligatorio."** y **"El campo Descripción es obligatorio."**, con los rótulos que se ven en el formulario.
+2. Escribir `abc` en Precio de Costo → **"El campo Precio de Costo debe ser un número."**. Es el mensaje del cliente, que no va al servidor: tiene que decir exactamente lo mismo.
+3. Repetir el paso 1 en **Usuarios → Nuevo** y **Perfiles → Nuevo** → mismos textos, con los rótulos de esas pantallas.
+4. Cargar un Movimiento con una Cantidad con coma decimal → el rechazo llega de la API y se muestra en español, nombrando el campo y **sin** mencionar tipos como `System.Int32`.
+5. Provocar un error de ejecución y revisar la bitácora → el Detalle de la excepción sigue guardado tal como lo produjo la plataforma. No es un mensaje para el usuario y no se traduce.
+
+**Resultado esperado**: ningún mensaje de validación visible queda en inglés, ni el que redacta el
+proyecto ni el que genera el marco de trabajo, y el diagnóstico técnico de la bitácora queda intacto.
+
 ---
 
 ## Mapa de cobertura

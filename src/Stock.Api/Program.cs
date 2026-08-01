@@ -1,6 +1,10 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Authorization;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore;
+using Stock.Api.Resources;
 using Stock.Api.Configuration;
 using Stock.Api.Security;
 using Stock.Api.Data;
@@ -76,6 +80,55 @@ public partial class Program
         // Todas las respuestas de error viajan como application/problem+json (RFC 7807), incluido
         // el 400 que produce el binder al recibir un no entero en un campo entero (RF-018a).
         builder.Services.AddProblemDetails();
+
+        // RF-035: completa en español el obligatorio implícito de las propiedades no anulables del
+        // cuerpo. Va después de `AddControllers` para correr detrás del proveedor de anotaciones de
+        // datos, que es el que agrega ese obligatorio.
+        builder.Services.Configure<MvcOptions>(mvc =>
+            mvc.ModelMetadataDetailsProviders.Add(new ValidacionEnEspanol()));
+
+        // RF-035a: el rechazo del borde de la solicitud lo produce el deserializador, no una
+        // validación propia, y su texto por omisión nombra tipos de la plataforma. Se traduce acá,
+        // en el único punto por el que pasan todos los 400 de validación, y **conservando la forma
+        // del contrato**: el problema lo sigue armando la fábrica estándar, así que el
+        // `application/problem+json`, el título y los nombres de campo no cambian.
+        builder.Services.Configure<ApiBehaviorOptions>(api =>
+            api.InvalidModelStateResponseFactory = contexto =>
+            {
+                var traducido = new ModelStateDictionary();
+
+                // Cuando el cuerpo no se puede deserializar, el marco de trabajo agrega **dos**
+                // entradas: la del campo ofensor —con su ruta JSON— y otra por el parámetro de la
+                // acción, que quedó en nulo como consecuencia. La segunda nombra un identificador
+                // interno que el usuario no conoce ("solicitud") y no aporta nada que la primera no
+                // diga, así que se omite: RF-035 pide que el mensaje nombre el campo del negocio.
+                var hayRutaJson = contexto.ModelState.Keys.Any(k => k.StartsWith('$'));
+
+                foreach (var (campo, entrada) in contexto.ModelState)
+                {
+                    if (hayRutaJson && !campo.StartsWith('$'))
+                    {
+                        continue;
+                    }
+
+                    foreach (var error in entrada.Errors)
+                    {
+                        traducido.AddModelError(
+                            campo, TraductorDeValidacion.Traducir(campo, error.ErrorMessage));
+                    }
+                }
+
+                var fabrica = contexto.HttpContext.RequestServices
+                    .GetRequiredService<ProblemDetailsFactory>();
+
+                var problema = fabrica.CreateValidationProblemDetails(
+                    contexto.HttpContext, traducido, StatusCodes.Status400BadRequest);
+
+                return new BadRequestObjectResult(problema)
+                {
+                    ContentTypes = { "application/problem+json" },
+                };
+            });
 
         var app = builder.Build();
 

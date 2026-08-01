@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Authorization;
+using Microsoft.AspNetCore.Mvc.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
 using Stock.Web.Services;
 
@@ -50,7 +52,25 @@ public partial class Program
 
             // Convierte el 401 de la API en una redirección al login (R-09).
             mvc.Filters.Add<RedirigirAlLoginFilter>();
+
+            // RF-035: los mensajes de enlazado, en español. Alimentan también los `data-val-*` de
+            // la validación del cliente.
+            MensajesDeEnlazado.EnEspanol(mvc);
         });
+
+        // RF-035: completa en español el mensaje de las validaciones que no traen uno propio,
+        // incluido el obligatorio implícito de las propiedades no anulables. Va **después** de
+        // `AddControllersWithViews` a propósito: el proveedor tiene que correr detrás del de
+        // anotaciones de datos, que es el que agrega ese obligatorio implícito. Registrado antes,
+        // no encontraría nada que completar.
+        builder.Services.Configure<MvcOptions>(mvc =>
+            mvc.ModelMetadataDetailsProviders.Add(new ValidacionEnEspanol()));
+
+        // …y el adaptador, que alcanza además al obligatorio que el marco de trabajo sintetiza para
+        // los tipos de valor al armar la validación del cliente. Sin él, la pantalla quedaba mitad
+        // en español y mitad en inglés según el tipo del campo.
+        builder.Services.AddSingleton<
+            IValidationAttributeAdapterProvider, AdaptadorDeValidacionEnEspanol>();
 
         // Por defecto Razor codifica como entidades numéricas todo lo que no sea ASCII básico, de
         // modo que "descripción" llegaría al navegador como "descripci&#xF3;n". Se ve bien, pero

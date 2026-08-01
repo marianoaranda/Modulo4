@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Stock.Api.Data;
@@ -16,18 +17,28 @@ namespace Stock.Api.Controllers;
 /// </summary>
 public sealed class ArticuloRequest
 {
+    // Los rótulos son los que el usuario ve en la pantalla: son los que aparecen dentro de los
+    // mensajes de validación, que la pantalla de carga muestra tal como los devuelve la API
+    // (RF-035). Sin ellos, el mensaje nombraría la propiedad —"Codigo", sin acento— y no el campo.
+    [Display(Name = "Código")]
     public string Codigo { get; set; } = string.Empty;
 
+    [Display(Name = "Descripción")]
     public string Descripcion { get; set; } = string.Empty;
 
+    [Display(Name = "Precio de Costo")]
     public decimal PrecioCosto { get; set; }
 
+    [Display(Name = "Margen (%)")]
     public decimal Margen { get; set; }
 
+    [Display(Name = "Stock Mínimo")]
     public int StockMinimo { get; set; }
 
+    [Display(Name = "Punto de Pedido")]
     public int PuntoPedido { get; set; }
 
+    [Display(Name = "Stock Ideal")]
     public int StockIdeal { get; set; }
 }
 

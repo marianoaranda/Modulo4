@@ -496,6 +496,60 @@ requisitos pendientes.
 
 ---
 
+## Fase 12: Mensajes de validación en español (RF-035, RF-035a)
+
+**Propósito**: que ningún mensaje de validación llegue al usuario en inglés, ni en la pantalla ni en
+las respuestas de la API que la pantalla muestra.
+
+**Dependencias**: ninguna. Es transversal y no toca ninguna regla de negocio; puede hacerse en
+cualquier momento después de la Fase 2.
+
+**Qué está roto hoy y por qué no se ve en los tests**: los mensajes que el proyecto escribe ya están
+en español —los de RF-018, RF-019, RF-023 y siguientes— y son los únicos que los tests asiertan. Los
+que salen en inglés son los que **nadie escribió**: el obligatorio de un campo vacío y el de tipo
+incorrecto, que produce el marco de trabajo. Por eso la fase empieza por un **barrido**: sin un test
+que recorra las pantallas buscando marcadores en inglés, se arreglan los tres casos que uno se
+acuerda de mirar y el cuarto queda.
+
+**Dos frentes, porque son dos mecanismos distintos**:
+
+- En `Stock.Web` los mensajes salen de los atributos de validación y del enlazado del modelo, y
+  viajan además a los atributos `data-val-*` que usa la validación del cliente. Se arreglan con un
+  proveedor de metadatos que complete el mensaje cuando el atributo no lo trae, más los accesores
+  del proveedor de mensajes de enlazado. Poner `ErrorMessage` a mano en cada propiedad sería la
+  alternativa: se descarta porque el que se olvide vuelve al inglés sin que nada avise.
+- En `Stock.Api` el rechazo de RF-018a lo produce el **deserializador**, no una validación propia, y
+  su texto por omisión nombra tipos de la plataforma. Se traduce en el punto donde el 400 se arma,
+  conservando la forma del contrato: mismo `application/problem+json` y mismos nombres de campo, que
+  es lo que los tests de contrato ya asiertan.
+
+**Lo que NO hay que hacer**: cambiar la cultura del proceso. Traduce de paso, pero también cambia
+cómo se interpretan números y fechas al enlazar, que es un efecto sobre la carga que nadie pidió y
+que este spec no describe. El idioma de los mensajes se resuelve por los mensajes.
+
+**Fuera de alcance, explícito**: la bitácora de RF-028 no se traduce. El Mensaje y el Detalle de la
+excepción se guardan tal como los produce la plataforma; no se le muestran nunca al usuario y son la
+cadena con la que se diagnostica una falla.
+
+### Tests de la Fase 12 ⚠️ ESCRIBIR PRIMERO, DEBEN FALLAR
+
+- [X] T168 [P] Tests de la capa web en `tests/Stock.Tests/Web/MensajesEnEspanolTests.cs`: un alta de artículo con Código y Descripción vacíos responde **"El campo Código es obligatorio."** y **"El campo Descripción es obligatorio."**; un texto donde va el Precio de Costo responde **"El campo Precio de Costo debe ser un número."**; y los atributos `data-val-*` que la vista emite traen esos mismos textos, de modo que el cliente y el servidor no digan lo mismo de dos maneras (RF-035)
+- [X] T168a Agregar a `tests/Stock.Tests/Web/MensajesEnEspanolTests.cs` el **barrido**: recorrer las pantallas de alta y edición de artículos, movimientos y usuarios y asertar que su HTML no contiene ninguno de los marcadores del inglés —`is required`, `must be a number`, `The value`, `The field`—. Es el test que convierte "todos los mensajes" en algo verificable; sin él el requisito se cumple sólo donde uno se acordó de mirar. Agrega casos al archivo de T168: no lleva `[P]` (RF-035)
+- [X] T169 [P] Tests del borde de la solicitud en `tests/Stock.Tests/Integration/ValidacionEnEspanolTests.cs`: el alta de un Movimiento con `cantidad` no entera devuelve **400 `application/problem+json`** con un mensaje en español que nombra el campo ofensor y **no contiene** `System.` ni el texto del deserializador; ídem con una fecha mal formada. El caso equivalente de `MovimientosContractTests` —que asierta el 400 y el campo— **debe seguir en verde**: la traducción no cambia la forma del contrato (RF-035a, RF-018a)
+
+### Implementación de la Fase 12
+
+- [X] T170 [P] Crear `src/Stock.Web/Resources/MensajesDeValidacion.cs` y `src/Stock.Api/Resources/MensajesDeValidacion.cs` con las dos plantillas que fija RF-035 —`"El campo {0} es obligatorio."` y `"El campo {0} debe ser un número."`—. Es una copia deliberada, como la de `LimitesDeConsulta`: los dos proyectos son ejecutables independientes y no comparten ensamblado (RF-035)
+- [X] T171 Registrar en `src/Stock.Web/Program.cs` un proveedor de metadatos de validación que complete el mensaje en español de los atributos que no traigan uno, y los accesores del `ModelBindingMessageProvider` para los fallos de enlazado. Debe alcanzar al **obligatorio implícito** de las propiedades no anulables, que es el que produce el "The Codigo field is required." de hoy (RF-035)
+- [X] T172 Traducir en `src/Stock.Api/Program.cs` los mensajes del estado del modelo al armar el 400, conservando el `application/problem+json` y los nombres de campo del contrato, y mapeando el fallo del deserializador a un texto sin nombres de tipos de la plataforma (RF-035a)
+- [X] T173 Quitar de `spec.md` las marcas *pendiente de implementación* de RF-035 y RF-035a y actualizar el encabezado de Estado, y agregar a [quickstart.md](./quickstart.md) el escenario **V-18**, que recorre un alta vacía en cada ABM y verifica que ningún mensaje visible quede en inglés
+- [X] T174 Ejecutar `dotnet test StockModulo.sln` y confirmar que toda la suite queda en verde
+
+**Punto de control**: ningún mensaje de validación visible queda en inglés, y el barrido de T168a lo
+sigue verificando cada vez que se agrega una pantalla.
+
+---
+
 ## Dependencias y Orden de Ejecución
 
 ### Dependencias entre fases
@@ -505,6 +559,7 @@ requisitos pendientes.
 - **Historias (Fases 3–7)**: todas dependen de la Fase 2
 - **Pulido (Fase 8)**: depende de las historias que se quieran entregar
 - **Brecha de interfaz (Fase 9)**: depende de las Fases 3 a 6; bloquea a la Fase 10
+- **Mensajes en español (Fase 12)**: transversal, sin dependencias más allá de la Fase 2; no bloquea a ninguna otra
 - **Comodidades de carga y consulta (Fase 11)**: depende de las Fases 9 y 10 —hereda la grilla de detalle y el buscador—; no bloquea a ninguna otra
 - **Carga asistida del detalle (Fase 10)**: depende de la **Fase 9 completa** —sin el detalle por Código (T139/T140), sin la puerta JSON del mismo origen (T141a) ni el buscador con su Descripción sincronizada (T142/T143) no hay dónde enganchar la sugerencia sin abrir una segunda ruta de resolución—; no bloquea a ninguna otra
 
@@ -541,6 +596,7 @@ requisitos pendientes.
 - Dentro de cada historia, los tests marcados `[P]` escriben en archivos distintos y corren en paralelo
 - Con equipo: tras la Fase 2, US1, US2, US3 y US4 pueden avanzar en paralelo; US5 espera a US4
 - Fase 9: T136a puede escribirse en paralelo con T134 y T136 (archivos distintos). T141a no lleva `[P]`: modifica `ArticulosController.cs`, que ya existe, y T142 depende de él
+- Fase 12: T168, T169 y T170 llevan `[P]`. T168a agrega casos al archivo de T168, y T171 y T172 dependen de las constantes de T170
 - Fase 11: T158, T159, T160a, T164 y T165 llevan `[P]` —tocan archivos distintos, de tres pantallas independientes—. T157, T158a y T160 agregan casos a archivos existentes, y T163 depende de T162
 - Fase 10: sólo T149 y T153 llevan `[P]`. T150 y T150a agregan casos a archivos que crean otras tareas (T149 y T136a); T148 modifica un archivo existente; y T152, T152a y T154 dependen en cadena de lo que documenta T151, de lo que expone T152 y de lo que expone T152a
 

@@ -6,11 +6,11 @@
 
 **Estado**: Implementado y verificado, sin requisitos pendientes.
 
-Todos los requisitos están implementados y cubiertos por tests, incluidos los tres grupos de
-interfaz que este encabezado fue declarando como brecha: los del 2026-07-31 (RF-016a, RF-020e,
-RF-020f y el grupo RF-034), la carga asistida del detalle (RF-020g a RF-020i) y las comodidades de
-carga y consulta (RF-020j, RF-025b, RF-026c). Los construyeron las Fases 9, 10 y 11 de
-[tasks.md](./tasks.md).
+Todos los requisitos están implementados y cubiertos por tests, incluidas las cuatro tandas de
+interfaz que este encabezado fue declarando como brecha: las del 2026-07-31 (RF-016a, RF-020e,
+RF-020f y el grupo RF-034), la carga asistida del detalle (RF-020g a RF-020i), las comodidades de
+carga y consulta (RF-020j, RF-025b, RF-026c) y los mensajes de validación en español (RF-035,
+RF-035a). Las construyeron las Fases 9 a 12 de [tasks.md](./tasks.md).
 
 **Entrada**: Descripción del usuario: "Generá el spec a partir del PRD que está en /PRD.md"
 
@@ -42,6 +42,7 @@ y cuando el usuario utiliza la busqueda, tambien debe cambiar la descripcion.
 - Q: ¿Con qué parámetros se abre la consulta "Generar Pedido"? → A: sugerir por defecto "Solo bajo mínimo" = No y "Modo de Pedido" = Hasta Stock Ideal.
 - Q: ¿Con qué parámetros se abre la "Consulta de Stock Actual"? → A: sugerir por defecto Código desde = primer código de artículo y Código hasta = último código de artículo.
 - Q: ¿Cómo se agregan líneas al detalle de un Movimiento? → A: hoy sólo se pueden cargar 5 registros de detalle y se necesitan todos los que hagan falta; agregar un botón "Agregar Línea" que cree registros de detalle, y no hace falta que aparezcan 5 registros vacíos pendientes de carga.
+- Q: ¿En qué idioma se muestran los mensajes de validación? → A: actualmente están en inglés (por ejemplo, "The Codigo field is required. The Descripcion field is required.") y se necesita que todos los mensajes de validación, en toda la aplicación, aparezcan en español.
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -133,6 +134,7 @@ catálogo es referencia de P2, pero puede validarse de forma aislada como ABM.
 4. **Dado** un artículo con al menos un movimiento asociado, **Cuando** se intenta darlo de baja, **Entonces** el sistema muestra un error y el artículo sigue existiendo con su histórico intacto.
 5. **Dado** un artículo cuyos parámetros de reposición se modifican, **Cuando** se vuelve a ejecutar Generar Pedido, **Entonces** el resultado refleja los parámetros vigentes al momento de la ejecución (la consulta no conserva resultados previos).
 6. **Dado** la pantalla de alta o de edición de un artículo, **Cuando** se edita el Precio de Costo o el Margen, **Entonces** el Precio de Venta mostrado se actualiza sin grabar ni recargar, y el campo permanece no editable: lo que queda grabado es siempre el cálculo del servidor, aunque el cliente no ejecute ningún recálculo.
+7. **Dado** el alta de un artículo con el Código y la Descripción vacíos, **Cuando** se intenta grabar, **Entonces** los mensajes se muestran **en español** y nombran los campos con su rótulo de la pantalla —"El campo Código es obligatorio." y "El campo Descripción es obligatorio."—, y **Dado** un texto donde va el Precio de Costo, **Entonces** el mensaje es "El campo Precio de Costo debe ser un número.". Ningún mensaje visible queda en inglés ni menciona nombres de tipos internos.
 
 ---
 
@@ -199,6 +201,9 @@ acceso de P4, pero no aporta valor de negocio directo por sí mismo.
 - **Baja de entidad referenciada**: no se permite eliminar un artículo con movimientos asociados ni un perfil con usuarios asignados; la operación se rechaza con un error y el registro permanece intacto.
 - **Renombre del perfil administrador**: cambiar la Descripción del perfil administrador es una operación válida y no altera los privilegios de sus usuarios; tampoco los otorga a un perfil renombrado a "administrador". El privilegio sigue a la marca interna, no al texto.
 - **Sistema sin administrador**: no existe secuencia de operaciones del ABM de seguridad que deje al sistema sin un usuario administrador. Se rechazan la baja del perfil administrador, la baja del último usuario administrador y el cambio de perfil de ese último usuario.
+- **Mensaje que nadie escribió**: un campo obligatorio vacío o un texto donde va un número producen mensajes que genera el marco de trabajo, no el código propio. Son los que hoy salen en inglés y también deben verse en español (RF-035); no alcanza con revisar los mensajes redactados a mano.
+- **Rechazo en el borde de la solicitud**: el valor no entero que RF-018a rechaza al deserializar lo produce el deserializador y no una validación propia. Su mensaje también va en español y sin nombres de tipos de la plataforma (RF-035a).
+- **Detalle técnico de una excepción**: no es un mensaje de validación ni se le muestra al usuario, así que la bitácora lo conserva tal como lo produjo la plataforma, en el idioma que sea (RF-028).
 - **Error de ejecución**: cualquier error en tiempo de ejecución queda registrado en la bitácora de errores sin exponer detalles internos al usuario.
 
 ## Requisitos *(obligatorio)*
@@ -210,6 +215,11 @@ Un sufijo alfabético (por ejemplo **RF-024a**) identifica un requisito derivado
 completa al RF base con el mismo número, incorporado a partir de una clarificación o de una
 auditoría de calidad. El sufijo preserva la trazabilidad hacia el PRD del requisito padre.
 
+La marca **(transversal)** reemplaza a la referencia del PRD en los requisitos que no nacen de
+ninguno en particular porque atraviesan a todos —hoy, los de idioma de los mensajes—. Es
+deliberada: inventarles un requisito padre del PRD para cumplir la convención los ataría a una
+funcionalidad y sugeriría que fuera de ella no rigen.
+
 Los requisitos se agrupan por **tema**, no por número: dentro de la lista, RF-029 aparece junto a los
 movimientos que lo satisfacen y RF-028 al final con el registro de errores. El identificador es una
 etiqueta estable de trazabilidad, **no una posición**; buscar un RF por su número no debe hacerse por
@@ -218,7 +228,7 @@ orden de aparición.
 La marca *pendiente de implementación* señala un requisito acordado y especificado que todavía no se
 construyó. No es una nota de estado transitoria del documento: mientras esté, ese requisito no tiene
 tarea ni test asociado, y el sistema no lo cumple. Hoy no la lleva ninguno: es el mecanismo con el
-que este spec documentó tres brechas sucesivas y las hizo trazables hasta cerrarlas.
+que este spec documentó cuatro brechas sucesivas y las hizo trazables hasta cerrarlas.
 
 ### Requisitos Funcionales
 
@@ -326,6 +336,14 @@ que este spec documentó tres brechas sucesivas y las hizo trazables hasta cerra
 - **RF-034a** (RF-20/RF-25): La ventana de búsqueda DEBE pedir un campo Descripción y un botón "Buscar" que llene una grilla con desplazamiento vertical de dos columnas —Código y Descripción— con los artículos cuya Descripción contenga el texto ingresado (coincidencia parcial, con la misma regla insensible a mayúsculas y acentos de RF-027a). Una Descripción vacía **no acota el resultado, pero tampoco lo libera del tope**: la búsqueda devuelve como máximo las primeras 10.000 filas por Código ascendente y avisa del recorte igual que RF-032a, en coherencia con RF-027 y con la restricción de la constitución que prohíbe consultas sin límite. La altura de la ventana NO DEBE superar los 600 píxeles.
 - **RF-034b** (RF-20/RF-25): Al elegir y aceptar un registro de la grilla, el sistema DEBE trasladar su Código al campo de origen y disparar **exactamente las mismas operaciones asociadas** que si el usuario lo hubiera tecleado a mano, sin ninguna ruta de código alternativa. Además, cada pantalla que use el buscador DEBE mostrar la Descripción del artículo correspondiente al Código vigente, y mantenerla sincronizada tanto cuando el Código se elige desde la búsqueda como cuando el usuario lo edita manualmente.
 - **RF-034c** (RF-20/RF-25): El buscador DEBE implementarse como un **componente encapsulado e independiente**, reutilizable por cualquier pantalla que pida un Código. Se considera cumplido cuando una pantalla sólo debe incluir la partial y declarar cuál es su campo de destino, **sin repetir el marcado ni el script del diálogo**. Fundamento: son dos las pantallas que lo consumen y RF-034b exige que ambas se comporten igual; dos copias del mismo diálogo divergirían y la equivalencia con la carga manual dejaría de sostenerse.
+
+**Idioma de los mensajes**
+- **RF-035** (transversal): El sistema DEBE presentar **en español** todo mensaje de validación que pueda llegar al usuario, en **las dos capas** —los que emite la pantalla y los que devuelve la API y la pantalla muestra— y en **todas** las funcionalidades, incluidas las que se agreguen más adelante. El requisito alcanza tanto a los mensajes redactados a mano, que ya están en español, como a los que **genera automáticamente el marco de trabajo** por un campo obligatorio vacío o por un valor de tipo incorrecto, que son los que hoy aparecen en inglés (por ejemplo, "The Codigo field is required.").
+  - El nombre del campo dentro del mensaje DEBE ser el **rótulo de negocio en español** con el que ese campo aparece en la pantalla —"Código", "Descripción", "Precio de Costo"—, nunca el identificador interno de la propiedad ni una traducción distinta de la etiqueta visible. Un mensaje que nombre un campo que el usuario no ve en la pantalla no le sirve para corregir la carga.
+  - Para que sea verificable al carácter, se fijan los dos textos genéricos, donde `{Campo}` es ese rótulo: **"El campo {Campo} es obligatorio."** y **"El campo {Campo} debe ser un número."**. Los mensajes de regla de negocio ya existentes —los de RF-018, RF-019, RF-023 y siguientes— no se reescriben: ya están en español y son más específicos que estos dos.
+  - Alcanza también a la **validación que corre en el cliente**: el texto que la pantalla muestra sin ir al servidor sale del mismo lugar que el del servidor, de modo que un mismo rechazo no pueda decirse de dos maneras según dónde se detecte.
+- **RF-035a** (transversal/RF-18): El sistema DEBE responder también en español el rechazo del **borde de la solicitud** de la API que fija RF-018a —el valor no entero que se rechaza al deserializar, antes de cualquier regla de negocio—, identificando el campo ofensor sin exponer nombres de tipos de la plataforma. Es el caso que más se escapa: no lo produce ninguna validación propia sino el deserializador, y su texto por omisión menciona tipos internos que no significan nada para quien está cargando un movimiento.
+  - **Queda fuera** la bitácora de errores de RF-028: el Mensaje y el Detalle de la excepción se guardan tal como los produce la plataforma, en el idioma que sea. No son mensajes para el usuario —nunca se le muestran— y traducirlos perdería la cadena exacta con la que se diagnostica una falla.
 
 **Registro de errores**
 - **RF-028** (RF-27): El sistema DEBE registrar todo error de ejecución en una bitácora con Identificador (autonumérico), Fecha/Hora, Nombre de la máquina, Mensaje y Detalle de la excepción.
