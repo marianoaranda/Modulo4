@@ -24,7 +24,7 @@
 
 ## Preparación de la Funcionalidad
 
-- [ ] Todos los requisitos funcionales tienen criterios de aceptación claros
+- [x] Todos los requisitos funcionales tienen criterios de aceptación claros
 - [x] Los escenarios de usuario cubren los flujos principales
 - [x] La funcionalidad cumple los resultados medibles definidos en los Criterios de Éxito
 - [x] Ningún detalle de implementación se filtra en la especificación
@@ -32,4 +32,5 @@
 ## Notas
 
 - Los ítems marcados como incompletos requieren actualizar el spec antes de `/speckit-clarify` o `/speckit-plan`
+- **Cierre del 2026-08-01**: el único ítem abierto era "criterios de aceptación claros". La auditoría previa a `/speckit-implement` encontró la causa: los siete requisitos de interfaz incorporados el 2026-07-31 (RF-016a, RF-020e, RF-020f y RF-034 a RF-034c) se habían sumado a la lista de Requisitos sin ningún escenario que dijera cómo verificarlos. Se agregaron los escenarios 17 a 21 de la Historia 2 y el 6 de la Historia 3, y con eso el ítem queda cumplido. RF-024 sigue sin criterio propio a propósito: el spec declara que lo refina RF-024a y que se conserva sólo por trazabilidad al PRD.
 - Las restricciones de stack (ASP.NET MVC, Web API REST, JWT, SQL Server 2017) provienen del PRD/constitución y se dejaron fuera de los requisitos funcionales para mantener el spec agnóstico de tecnología; se registran como Supuestos y se detallarán en el plan.
