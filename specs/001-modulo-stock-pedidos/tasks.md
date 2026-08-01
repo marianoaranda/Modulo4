@@ -344,12 +344,23 @@ efecto colateral no planificado.
 JavaScript. No se introduce un runner de JS: el rojo se produce sobre el **contrato renderizado**
 de la vista, según fija la reevaluación post-Fase 1 de [plan.md](./plan.md).
 
+**Nota sobre el borde del navegador (auditoría 2026-08-01)**: el buscador es el primer componente
+que necesita **datos** desde el cliente, y no puede pedírselos a `Stock.Api` directamente. El JWT
+vive en un claim de la cookie de sesión y lo adjunta `BearerTokenHandler` a las llamadas salientes
+**del servidor**; el navegador no lo tiene, y la API no expone CORS. Una llamada del script a
+`http://localhost:5279/api/articulos` fallaría en el navegador, y los tests de esta fase —que
+asertan marcado renderizado— no lo detectarían. Por eso T136a/T141a agregan una acción JSON en
+`Stock.Web`, del mismo origen que la página, que proxea la consulta con la sesión ya establecida.
+Mover el token al navegador sería la alternativa, y está descartada: expondría al cliente una
+credencial que hoy nunca sale del servidor.
+
 ### Tests de la Fase 9 ⚠️ ESCRIBIR PRIMERO, DEBEN FALLAR
 
 - [ ] T133 Cambiar en `tests/Stock.Tests/Integration/MovimientosContractTests.cs` las líneas de detalle para que envíen `codigo` en vez de `articuloId`, y asertar que ninguna respuesta expone el identificador interno del artículo, según `contracts/openapi.yaml` (RF-020e). Modifica un archivo existente: no lleva `[P]`
 - [ ] T134 [P] Tests de resolución del Código en `tests/Stock.Tests/Integration/MovimientoCodigoTests.cs`: un Código inexistente devuelve **404 `application/problem+json`** identificando el Código ofensor, sin grabar ninguna línea, y `a-001` resuelve al artículo `A-001` por la regla insensible a mayúsculas y sensible a acentos de RF-017a (RF-020e)
 - [ ] T135 Agregar a `tests/Stock.Tests/Integration/MovimientoNumeracionTests.cs` el test de `GET /api/movimientos/proximo-numero`: devuelve el correlativo siguiente, **no consume la secuencia** —dos llamadas seguidas devuelven el mismo valor— y el valor avanza recién después de un alta. Sin este caso, RF-020f podría implementarse con un `IDENTITY` consumido, que contradice RF-020a (RF-020f)
 - [ ] T136 [P] Tests del buscador en `tests/Stock.Tests/Web/BuscadorArticulosTests.cs`: la ventana pide Descripción y "Buscar", la grilla trae las dos columnas Código y Descripción, y una Descripción vacía **no lista sin límite** sino que aplica el tope de 10.000 con el aviso de recorte de RF-032a. La altura declarada no supera los 600 píxeles (RF-034, RF-034a)
+- [ ] T136a [P] Tests de la puerta JSON del buscador en `tests/Stock.Tests/Web/BuscadorArticulosEndpointTests.cs`: bajo sesión válida, `GET /Articulos/Buscar?descripcion=` responde `application/json` con Código y Descripción de cada fila y **ningún token** en el cuerpo ni en los encabezados; sin sesión, el filtro global de T105b la manda al login y no devuelve datos; y el tope de 10.000 con su aviso de recorte viaja en la respuesta, no lo inventa el script (RF-034a)
 - [ ] T137 Agregar a `tests/Stock.Tests/Web/BuscadorArticulosTests.cs` los casos de RF-034b y RF-034c: cada pantalla con un campo de Código —detalle de movimientos y los dos extremos del rango de Stock Actual— incluye **la misma partial**, con una sola definición del diálogo en todo el proyecto; y la Descripción mostrada se mantiene sincronizada tanto al elegir desde la búsqueda como al editar el Código a mano, por la misma ruta de código
 - [ ] T138 Agregar a `tests/Stock.Tests/Web/ArticulosControllerTests.cs` el caso de RF-016a: las vistas de alta y edición emiten el hook de recálculo sobre Precio de Costo y Margen. El caso de sólo lectura del Precio de Venta ya existe desde T086 y **debe seguir en verde**: es lo que garantiza que el cliente no pueda alterar el precio grabado
 
@@ -358,7 +369,8 @@ de la vista, según fija la reevaluación post-Fase 1 de [plan.md](./plan.md).
 - [ ] T139 Cambiar `LineaRequest.ArticuloId` por `Codigo` (string) y quitar `ArticuloId` de `DetalleResponse` en `src/Stock.Api/Controllers/MovimientosController.cs`. El comentario de RF-018a sigue valiendo para `Cantidad`, que continúa tipada como `int` (RF-020e)
 - [ ] T140 Resolver el Código a `ArticuloId` **dentro de la transacción**, completando el paso 2 del protocolo de escritura de [data-model.md](./data-model.md), y abortar con 404 indicando el Código ofensor si no existe, en `src/Stock.Api/Services/MovimientoService.cs` (RF-020e)
 - [ ] T141 Implementar `GET /api/movimientos/proximo-numero` en `src/Stock.Api/Controllers/MovimientosController.cs` según `contracts/openapi.yaml`, sin consumir la secuencia (RF-020f)
-- [ ] T142 [P] Crear el componente encapsulado del buscador en `src/Stock.Web/Views/Shared/_BuscadorArticulos.cshtml` y `src/Stock.Web/wwwroot/js/buscador-articulos.js`, consumiendo `GET /api/articulos?descripcion=` con su tope de 10.000 y altura máxima de 600 píxeles (RF-034, RF-034a, RF-034c)
+- [ ] T141a Agregar la acción JSON `Buscar(string descripcion)` a `src/Stock.Web/Controllers/ArticulosController.cs`, que proxea `GET /api/articulos?descripcion=` con `StockApiClient` —el token lo sigue adjuntando `BearerTokenHandler` del lado del servidor— y devuelve sólo Código y Descripción, con el tope de 10.000 y el indicador de recorte. Es el único origen de datos del buscador; el script nunca llama a `Stock.Api` (RF-034a)
+- [ ] T142 [P] Crear el componente encapsulado del buscador en `src/Stock.Web/Views/Shared/_BuscadorArticulos.cshtml` y `src/Stock.Web/wwwroot/js/buscador-articulos.js`, consumiendo la acción **del mismo origen** de T141a —`GET /Articulos/Buscar?descripcion=`, nunca `Stock.Api` directamente— con su tope de 10.000 y altura máxima de 600 píxeles (RF-034, RF-034a, RF-034c)
 - [ ] T143 Consumir el buscador desde `src/Stock.Web/Views/Movimientos/` y `src/Stock.Web/Views/StockActual/Index.cshtml`, trasladando el Código elegido por **la misma ruta de código** que el tipeo manual y mostrando la Descripción del Código vigente (RF-034b)
 - [ ] T144 Mostrar el Número sugerido en modo sólo lectura en `src/Stock.Web/Views/Movimientos/Create.cshtml`, consumiendo T141 (RF-020f)
 - [ ] T145 [P] Crear `src/Stock.Web/wwwroot/js/articulo-precio.js` y engancharlo en `src/Stock.Web/Views/Articulos/Create.cshtml` y `Edit.cshtml`, recalculando el Precio de Venta al editar Precio de Costo o Margen, sin grabar ni recargar y sin habilitar el campo (RF-016a)
@@ -397,17 +409,25 @@ caracteres que no viajan bien en un segmento de ruta, y el tope de 10.000 de RF-
 Un Código inexistente devuelve **arreglo vacío con 200**, no 404: para la pantalla es "no hay
 sugerencia", no un error (RF-020g); el 404 sigue siendo el de RF-020e, al grabar.
 
+**El script no habla con la API**: vale la nota del borde del navegador de la Fase 9. La sugerencia
+sale del mismo origen que la página, extendiendo con `codigo` la acción de T141a (T150a/T152a), y no
+de una segunda llamada a `Stock.Api` que el navegador no puede autenticar. Es además lo que sostiene
+la "única consulta por Código" de RF-020g: una sola puerta, la misma que ya usa el buscador.
+
 ### Tests de la Fase 10 ⚠️ ESCRIBIR PRIMERO, DEBEN FALLAR
 
 - [ ] T148 Agregar a `tests/Stock.Tests/Integration/ArticulosContractTests.cs` los casos del filtro exacto `GET /api/articulos?codigo=`: devuelve el único artículo de ese Código con su Descripción, Precio de Costo y Precio de Venta; `a-001` resuelve `A-001` por la regla insensible a mayúsculas y sensible a acentos de RF-017a; un Código inexistente devuelve `200` con arreglo vacío; y `codigo` y `descripcion` combinados no se contradicen. Modifica un archivo existente: no lleva `[P]` (RF-020g)
 - [ ] T149 [P] Tests del contrato renderizado de la sugerencia en `tests/Stock.Tests/Web/MovimientoDetalleAsistidoTests.cs`: la vista del detalle expone, por línea, el Tipo vigente del movimiento y el punto de enganche del script de sugerencia; declara **un solo** origen de datos del artículo (el mismo que consume el buscador de T143, sin una segunda ruta); y al abrir un movimiento existente para editarlo **no** emite ninguna marca de re-sugerencia sobre las líneas ya grabadas (RF-020g)
 - [ ] T150 Agregar a `tests/Stock.Tests/Web/MovimientoDetalleAsistidoTests.cs` los casos de la grilla y el total: el encabezado del detalle trae exactamente cuatro columnas en el orden **Código, Cantidad, Precio Unitario, Precio Total**; la Descripción se emite **dentro de la celda del Código**, debajo de él y no como quinta columna; el Precio Total de la línea se renderiza como no editable; y existe un total rotulado exactamente **"Total General"**, que vale 0 con el detalle vacío. Agrega casos al archivo que crea T149: no lleva `[P]` (RF-020h, RF-020i)
 
+- [ ] T150a Agregar a `tests/Stock.Tests/Web/BuscadorArticulosEndpointTests.cs` los casos de `GET /Articulos/Buscar?codigo=`: bajo sesión válida devuelve la Descripción, el Precio de Costo y el Precio de Venta del artículo de ese Código en una sola respuesta; un Código inexistente responde **200 con cuerpo vacío**, no 404 ni error; y `codigo` y `descripcion` no se pisan entre sí. Agrega casos al archivo que crea T136a: no lleva `[P]` (RF-020g)
+
 ### Implementación de la Fase 10
 
 - [ ] T151 Documentar en `specs/001-modulo-stock-pedidos/contracts/openapi.yaml` el parámetro de consulta `codigo` de `GET /api/articulos` —coincidencia **exacta** con la regla de RF-017a, arreglo de 0 ó 1 elementos, sin 404— y dejar asentado que es la única resolución de Código que consume la pantalla de movimientos (RF-020g)
 - [ ] T152 Implementar el filtro exacto por `codigo` en `src/Stock.Api/Controllers/ArticulosController.cs` y su servicio, reusando la comparación de RF-017a que ya sostiene la unicidad del Código, sin duplicar la regla de comparación (RF-020g)
-- [ ] T153 [P] Crear `src/Stock.Web/wwwroot/js/movimiento-detalle.js`: al establecerse o cambiar el Código de una línea, consultar T152 y completar el Precio Unitario con el Precio de Costo si el Tipo es Compra y con el Precio de Venta si es Venta, dejándolo **editable**; no re-sugerir al cambiar el Tipo con líneas ya cargadas; no sugerir nada si el Código no existe (y vaciar la Descripción); y recalcular el Precio Total de la línea y el Total General ante cualquier cambio de Cantidad, Precio Unitario, Código, alta o baja de línea (RF-020g, RF-020h, RF-020i)
+- [ ] T152a Extender la acción `Buscar` de T141a en `src/Stock.Web/Controllers/ArticulosController.cs` con el parámetro `codigo`, que pasa a T152 y devuelve además el Precio de Costo y el Precio de Venta del artículo resuelto. Un Código inexistente devuelve cuerpo vacío con 200, sin error (RF-020g)
+- [ ] T153 [P] Crear `src/Stock.Web/wwwroot/js/movimiento-detalle.js`: al establecerse o cambiar el Código de una línea, consultar **la acción del mismo origen de T152a** —`GET /Articulos/Buscar?codigo=`, nunca `Stock.Api` directamente— y completar el Precio Unitario con el Precio de Costo si el Tipo es Compra y con el Precio de Venta si es Venta, dejándolo **editable**; no re-sugerir al cambiar el Tipo con líneas ya cargadas; no sugerir nada si el Código no existe (y vaciar la Descripción); y recalcular el Precio Total de la línea y el Total General ante cualquier cambio de Cantidad, Precio Unitario, Código, alta o baja de línea (RF-020g, RF-020h, RF-020i)
 - [ ] T154 Rehacer la grilla de `src/Stock.Web/Views/Movimientos/_Formulario.cshtml` con las cuatro columnas de RF-020h, la Descripción debajo del Código dentro de su celda, el Precio Total no editable y la fila de **"Total General"**, y enganchar `movimiento-detalle.js` en `Create.cshtml` y `Edit.cshtml`. El evento de cambio de Código que dispara la sugerencia es **el mismo** que T143 usa para sincronizar la Descripción: se agrega un suscriptor, no una segunda ruta (RF-020g, RF-020h, RF-020i, RF-034b)
 - [ ] T155 Quitar de `spec.md` las tres marcas *pendiente de implementación* de RF-020g a RF-020i y dejar el encabezado de Estado sin brecha declarada, y agregar a [quickstart.md](./quickstart.md) el escenario **V-16**: cargar una compra y una venta del mismo artículo verificando que el precio sugerido es el de costo y el de venta respectivamente, que reemplazarlo a mano graba el valor tecleado (RF-023b) y que el Total General coincide con la suma de los Precios Totales
 - [ ] T156 Ejecutar `dotnet test StockModulo.sln` y confirmar que toda la suite queda en verde
@@ -425,7 +445,7 @@ sugerencia", no un error (RF-020g); el 404 sigue siendo el de RF-020e, al grabar
 - **Historias (Fases 3–7)**: todas dependen de la Fase 2
 - **Pulido (Fase 8)**: depende de las historias que se quieran entregar
 - **Brecha de interfaz (Fase 9)**: depende de las Fases 3 a 6; bloquea a la Fase 10
-- **Carga asistida del detalle (Fase 10)**: depende de la **Fase 9 completa** —sin el detalle por Código (T139/T140) ni el buscador con su Descripción sincronizada (T142/T143) no hay dónde enganchar la sugerencia sin abrir una segunda ruta de resolución—; no bloquea a ninguna otra
+- **Carga asistida del detalle (Fase 10)**: depende de la **Fase 9 completa** —sin el detalle por Código (T139/T140), sin la puerta JSON del mismo origen (T141a) ni el buscador con su Descripción sincronizada (T142/T143) no hay dónde enganchar la sugerencia sin abrir una segunda ruta de resolución—; no bloquea a ninguna otra
 
 ### Dentro de la Fase 2 — el ciclo rojo→verde es estrictamente secuencial entre bloques
 
@@ -459,7 +479,8 @@ sugerencia", no un error (RF-020g); el 404 sigue siendo el de RF-020e, al grabar
 - Fase 2: los cinco tests de esquema (T016–T019a) en paralelo; luego las seis entidades (T020–T025) en paralelo; luego las cinco configuraciones (T031–T035) en paralelo
 - Dentro de cada historia, los tests marcados `[P]` escriben en archivos distintos y corren en paralelo
 - Con equipo: tras la Fase 2, US1, US2, US3 y US4 pueden avanzar en paralelo; US5 espera a US4
-- Fase 10: sólo T149 y T153 llevan `[P]`. T150 agrega casos al archivo de T149; T148 modifica un archivo existente; y T152 y T154 dependen de lo que documenta T151 y de lo que expone T152, respectivamente
+- Fase 9: T136a puede escribirse en paralelo con T134 y T136 (archivos distintos). T141a no lleva `[P]`: modifica `ArticulosController.cs`, que ya existe, y T142 depende de él
+- Fase 10: sólo T149 y T153 llevan `[P]`. T150 y T150a agregan casos a archivos que crean otras tareas (T149 y T136a); T148 modifica un archivo existente; y T152, T152a y T154 dependen en cadena de lo que documenta T151, de lo que expone T152 y de lo que expone T152a
 
 ---
 
